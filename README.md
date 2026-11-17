@@ -1,5 +1,12 @@
 # sclop
 
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/AI-X-dark.svg">
+    <img src="assets/AI-X-light.svg" alt="AI:X" width="160">
+  </picture>
+</div>
+
 A minimal coding agent for the terminal, written in C and LuaJIT. If opencode and pi are
 neovim and vim, sclop is vis.
 
