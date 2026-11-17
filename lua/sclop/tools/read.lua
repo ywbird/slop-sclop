@@ -4,8 +4,11 @@ local MAX_BYTES = 64 * 1024
 
 sclop.tools.register{
 	name = 'read',
-	description = 'Read a text file. Lines come numbered: line number, a tab, then the text. '
+	description = 'Read a text file or list a directory. Lines come numbered: line number, a tab, then text; '
+		.. 'the number is not part of the file. A call returns at most limit lines (default 2000) '
+		.. 'and about 64 KB; lines longer than 2000 bytes are cut. '
 		.. 'Use offset (first line, from 1) and limit to page through big files. '
+		.. 'Use grep to find specific content in large files, and prefer one larger read over many small slices. '
 		.. 'A directory path lists its entries.',
 	schema = {
 		type = 'object',
