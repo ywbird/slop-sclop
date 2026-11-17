@@ -1,5 +1,7 @@
 /* Lua glue: the sclop.core module, runtime paths, C -> Lua entry points */
+#include <errno.h>
 #include <limits.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -262,6 +264,138 @@ static int l_feed(lua_State *L)
 	return 0;
 }
 
+/* processes */
+
+typedef struct LProc {
+	int id, ref;
+	Proc *p;
+	struct LProc *next;
+} LProc;
+
+static LProc *lprocs;
+static int lastproc;
+
+static int pushcallback(int ref, const char *field);
+
+static LProc *findproc(int id)
+{
+	for (LProc *lp = lprocs; lp; lp = lp->next)
+		if (lp->id == id)
+			return lp;
+	return NULL;
+}
+
+static void onprocout(Proc *p, int fd, const char *buf, size_t n, void *data)
+{
+	LProc *lp = data;
+	(void)p;
+	if (pushcallback(lp->ref, fd == 1 ? "on_stdout" : "on_stderr")) {
+		lua_pushlstring(L, buf, n);
+		call(1);
+	}
+}
+
+static void onprocexit(Proc *p, int code, int sig, void *data)
+{
+	LProc *lp = data;
+	int ref = lp->ref;
+	(void)p;
+	for (LProc **pp = &lprocs; *pp; pp = &(*pp)->next) {
+		if (*pp == lp) {
+			*pp = lp->next;
+			break;
+		}
+	}
+	free(lp);
+	int have = pushcallback(ref, "on_exit");
+	luaL_unref(L, LUA_REGISTRYINDEX, ref);
+	if (have) {
+		lua_pushinteger(L, code);
+		lua_pushinteger(L, sig);
+		call(2);
+	}
+}
+
+static int l_spawn(lua_State *L)
+{
+	ProcOpts o = { 0 };
+	size_t inlen = 0;
+	luaL_checktype(L, 1, LUA_TTABLE);
+	lua_settop(L, 1);
+	lua_getfield(L, 1, "argv");  /* 2 */
+	lua_getfield(L, 1, "cwd");   /* 3 */
+	lua_getfield(L, 1, "stdin"); /* 4 */
+	lua_getfield(L, 1, "merge"); /* 5 */
+	int n = lua_istable(L, 2) ? (int)lua_objlen(L, 2) : 0;
+	if (n < 1)
+		return luaL_argerror(L, 1, "argv must be a non-empty array");
+	char **argv = lua_newuserdata(L, (n + 1) * sizeof *argv);
+	for (int i = 0; i < n; i++) {
+		lua_rawgeti(L, 2, i + 1);
+		if (lua_type(L, -1) != LUA_TSTRING)
+			return luaL_argerror(L, 1, "argv must hold strings");
+		argv[i] = (char *)lua_tostring(L, -1); /* still referenced by argv */
+		lua_pop(L, 1);
+	}
+	argv[n] = NULL;
+	const char *in = lua_type(L, 4) == LUA_TSTRING ? lua_tolstring(L, 4, &inlen) : NULL;
+	o.argv = argv;
+	o.cwd = lua_tostring(L, 3);
+	o.keep_stdin = in || lua_toboolean(L, 4);
+	o.merge = lua_toboolean(L, 5);
+	o.out = onprocout;
+	o.exit = onprocexit;
+
+	LProc *lp = calloc(1, sizeof *lp);
+	if (!lp)
+		return luaL_error(L, "out of memory");
+	o.data = lp;
+	if (!(lp->p = proc_spawn(&o))) {
+		free(lp);
+		lua_pushnil(L);
+		lua_pushstring(L, strerror(errno));
+		return 2;
+	}
+	lp->id = ++lastproc;
+	lua_pushvalue(L, 1);
+	lp->ref = luaL_ref(L, LUA_REGISTRYINDEX);
+	lp->next = lprocs;
+	lprocs = lp;
+	if (in) {
+		proc_write(lp->p, in, inlen);
+		proc_close(lp->p);
+	}
+	lua_pushinteger(L, lp->id);
+	return 1;
+}
+
+static int l_proc_write(lua_State *L)
+{
+	size_t n;
+	LProc *lp = findproc(luaL_checkinteger(L, 1));
+	const char *s = luaL_checklstring(L, 2, &n);
+	if (lp)
+		proc_write(lp->p, s, n);
+	lua_pushboolean(L, lp != NULL);
+	return 1;
+}
+
+static int l_proc_close(lua_State *L)
+{
+	LProc *lp = findproc(luaL_checkinteger(L, 1));
+	if (lp)
+		proc_close(lp->p);
+	return 0;
+}
+
+static int l_proc_kill(lua_State *L)
+{
+	LProc *lp = findproc(luaL_checkinteger(L, 1));
+	if (lp)
+		proc_kill(lp->p, luaL_optinteger(L, 2, SIGTERM));
+	return 0;
+}
+
 /* http */
 
 typedef struct LHttp {
@@ -425,6 +559,10 @@ static const luaL_Reg corefns[] = {
 	{ "feed", l_feed },
 	{ "timer", l_timer },
 	{ "timer_stop", l_timer_stop },
+	{ "spawn", l_spawn },
+	{ "proc_write", l_proc_write },
+	{ "proc_close", l_proc_close },
+	{ "proc_kill", l_proc_kill },
 	{ "http", l_http },
 	{ "http_cancel", l_http_cancel },
 	{ "now", l_now },

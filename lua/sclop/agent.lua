@@ -1,7 +1,7 @@
--- agent: the conversation loop
+-- agent: the conversation loop, tool calls and permissions
 local A = { busy = false, messages = {}, tokens = 0, partial = '' }
 
-local request, ticker
+local request, ticker, pending
 local streamed -- text of the reply being streamed, kept if it is interrupted
 
 local function view()
@@ -13,8 +13,21 @@ function A.system_prompt()
 		sclop.system, sclop.cwd, sclop.platform, os.date('%Y-%m-%d'))
 end
 
+-- tools offered to the model, sorted so the request prefix stays cacheable
 function A.tool_list()
-	return {}
+	local names, list = {}, {}
+	for name, t in pairs(sclop.tools) do
+		if not t.available or t.available() then
+			names[#names + 1] = name
+		end
+	end
+	table.sort(names)
+	for i, name in ipairs(names) do
+		local t = sclop.tools[name]
+		local d = t.description
+		list[i] = { name = name, description = type(d) == 'function' and d() or d, schema = t.schema }
+	end
+	return list
 end
 
 function A.push(msg)
@@ -38,7 +51,7 @@ end
 
 local function stop()
 	A.busy = false
-	request = nil
+	request, pending = nil, nil
 	if ticker then
 		ticker:stop()
 		ticker = nil
@@ -47,7 +60,119 @@ local function stop()
 	sclop.redraw()
 end
 
-local function turn()
+local turn
+
+-- permission for a call: an event handler, then sclop.permissions
+function A.decide(call)
+	local d = sclop.events.emit(sclop.events.TOOL_CALL, call)
+	if d then
+		return d
+	end
+	local p = sclop.permissions[call.name]
+	if p == nil then
+		p = sclop.permissions['*']
+	end
+	if type(p) == 'function' then
+		p = p(call.args or {})
+	end
+	return p or 'allow'
+end
+
+local function run_tool(call, done)
+	local tool = sclop.tools[call.name]
+	sclop.commit(view().tool(call, tool))
+	if not tool then
+		return done('there is no tool named ' .. tostring(call.name), true)
+	end
+	local function finish(text, is_error)
+		A.running = nil
+		sclop.commit(view().result(call, text, is_error, tool))
+		done(text, is_error)
+	end
+	local function execute()
+		local finished, running = false, { call = call, output = '' }
+		A.running = running
+		local ok, cancel = pcall(tool.run, call.args or {}, function(text, is_error)
+			if not finished and A.running == running then -- not interrupted
+				finished = true
+				A.cancel = nil
+				finish(tostring(text), is_error)
+			end
+		end, function(output)
+			if A.running == running then
+				running.output = output
+				sclop.redraw()
+			end
+		end)
+		if not ok and finished then
+			return sclop.error(tostring(cancel)) -- raised after the tool was done
+		elseif not ok then
+			finished = true
+			return finish('the tool failed: ' .. tostring(cancel), true)
+		end
+		if not finished then
+			A.cancel = cancel
+		end
+	end
+	local d = A.decide(call)
+	if d == 'deny' then
+		return finish('permission denied by the user\'s settings', true)
+	elseif d == 'ask' then
+		A.asking = call
+		sclop.mode = sclop.modes.ASK
+		A.answer = function(answer)
+			A.asking, A.answer = nil, nil
+			sclop.mode = sclop.modes.INPUT
+			if answer == 'n' then
+				return finish('the user denied permission', true)
+			end
+			if answer == 'a' then
+				sclop.permissions[call.name] = 'allow'
+			end
+			execute()
+		end
+		sclop.redraw()
+		return
+	end
+	execute()
+end
+
+-- after a reply: run its tool calls in order, then ask again; else the turn is over
+function A.after(msg)
+	local calls = {}
+	for _, b in ipairs(msg.content) do
+		if b.type == 'tool_call' then
+			calls[#calls + 1] = b
+		end
+	end
+	if #calls == 0 then
+		return stop()
+	end
+	local p = { calls = calls, results = {} }
+	pending = p
+	local function nextcall()
+		if pending ~= p then
+			return -- interrupted
+		end
+		local call = calls[#p.results + 1]
+		if not call then
+			pending = nil
+			A.push({ role = 'user', content = p.results })
+			return turn()
+		end
+		run_tool(call, function(text, is_error)
+			if pending ~= p then
+				return
+			end
+			p.results[#p.results + 1] = { type = 'tool_result', id = call.id, content = text, is_error = is_error }
+			sclop.events.emit(sclop.events.TOOL_RESULT, call, text, is_error)
+			nextcall()
+		end)
+	end
+	nextcall()
+end
+
+function turn()
 	local provider = sclop.providers[sclop.provider]
 	if not provider then
 		sclop.error('unknown provider: ' .. tostring(sclop.provider))
@@ -100,11 +225,7 @@ local function turn()
 		end,
 	})
 end
-
--- what to do once a reply is complete; the tool loop hooks in here
-function A.after(msg)
-	stop()
-end
+A.turn = turn
 
 function A.submit(text)
 	sclop.commit(view().user(text))
@@ -113,8 +234,6 @@ function A.submit(text)
 	ticker = sclop.timer(100, sclop.redraw, true)
 	turn()
 end
-
-A.turn = turn
 
 function A.abort()
 	if request then
@@ -127,6 +246,20 @@ function A.abort()
 			A.push({ role = 'assistant', content = { { type = 'text', text = text } } })
 		end
 	end
+	if pending then
+		local p = pending
+		pending = nil
+		if A.cancel then
+			pcall(A.cancel)
+			A.cancel = nil
+		end
+		A.running, A.asking, A.answer = nil, nil, nil
+		sclop.mode = sclop.modes.INPUT
+		for i = #p.results + 1, #p.calls do
+			p.results[i] = { type = 'tool_result', id = p.calls[i].id, content = 'interrupted by the user', is_error = true }
+		end
+		A.push({ role = 'user', content = p.results })
+	end
 	sclop.info('interrupted')
 	stop()
 end
@@ -135,5 +268,16 @@ function A.clear()
 	A.messages = {}
 	A.tokens = 0
 end
+
+local K = sclop.modes.ASK
+for _, key in ipairs{ 'y', 'n', 'a' } do
+	sclop:map(K, key, function()
+		if A.answer then
+			A.answer(key)
+		end
+	end)
+end
+sclop:map(K, '<Escape>', 'n')
+sclop:map(K, '<C-c>', function() A.abort() end)
 
 return A

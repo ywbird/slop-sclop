@@ -34,16 +34,73 @@ function V.tail(s, w)
 	return '…' .. table.concat(chars, '', i + 1)
 end
 
+-- the start of s that fits in w columns
+function V.clip(s, w)
+	local width = sclop.core.width
+	if width(s) <= w then
+		return s
+	end
+	local out, n = {}, 1
+	for ch in s:gmatch('[%z\1-\127\194-\244][\128-\191]*') do
+		n = n + width(ch)
+		if n > w then
+			break
+		end
+		out[#out + 1] = ch
+	end
+	return table.concat(out) .. '…'
+end
+
+local function oneline(s)
+	return (s:gsub('%s*\n%s*', ' ⏎ '))
+end
+
 -- lines of work in progress; filled from the agent's state
 function V.live(lines)
-	local a = sclop.agent
+	local a, cols = sclop.agent, sclop.core.size()
 	if a.thinking then
 		local last = a.thinking:gsub('%s+$', ''):match('[^\n]*$')
-		lines[#lines + 1] = S.dim(S.italic('∴ ' .. V.tail(last, sclop.core.size() - 2)))
+		lines[#lines + 1] = S.dim(S.italic('∴ ' .. V.tail(last, cols - 2)))
 	end
 	if a.partial ~= '' then
 		lines[#lines + 1] = V.assistant(a.partial)
 	end
+	if a.running then
+		local out = sclop.util.lines(a.running.output)
+		for i = math.max(1, #out - 3), #out do
+			if out[i] ~= '' or i < #out then
+				lines[#lines + 1] = S.gray('  │ ' .. V.clip(out[i], cols - 4))
+			end
+		end
+	end
+	if a.asking then
+		lines[#lines + 1] = S.yellow('Allow ' .. a.asking.name .. '?') .. ' [y]es [n]o [a]lways'
+	end
+end
+
+function V.tool(call, tool)
+	local args = call.args or {}
+	local ok, s = pcall(function()
+		return tool and tool.summary and tool.summary(args) or sclop.json.encode(args)
+	end)
+	s = oneline(ok and tostring(s) or '')
+	return V.clip(S.bold('● ' .. call.name) .. ' ' .. s, sclop.core.size())
+end
+
+function V.result(call, text, is_error, tool)
+	local custom = tool and tool.render and tool.render(text, is_error, call.args or {})
+	if custom then
+		return custom
+	end
+	local cols, lines, shown = sclop.core.size(), sclop.util.lines(text), {}
+	for i = 1, math.min(3, #lines) do
+		shown[i] = V.clip((i == 1 and '  ⎿ ' or '    ') .. lines[i], cols)
+	end
+	if #lines > 3 then
+		shown[#shown + 1] = string.format('    … %d more lines', #lines - 3)
+	end
+	local s = table.concat(shown, '\n')
+	return is_error and S.red(s) or S.gray(s)
 end
 
 -- input lines; returns the cursor row and byte column

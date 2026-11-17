@@ -1,7 +1,7 @@
 -- test runner: ./sclop -l test/run.lua [name...]
 local names = { ... }
 if #names == 0 then
-	names = { 'loop', 'keys', 'editor', 'json', 'sse', 'providers' }
+	names = { 'loop', 'keys', 'editor', 'json', 'sse', 'providers', 'tools', 'http' }
 end
 
 local passed, failed, queue = 0, 0, {}

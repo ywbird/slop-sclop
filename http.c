@@ -10,14 +10,14 @@ struct Http {
 	CURL *easy;
 	struct curl_slist *headers;
 	HttpOpts o;
-	int cancelled;
+	int added, cancelled;
 	char err[CURL_ERROR_SIZE];
 	Http *next;
 };
 
 static CURLM *multi;
 static Http *reqs;
-static int curltimer, reaptimer;
+static int curltimer, reaptimer, addtimer;
 
 static void unlinkreq(Http *h)
 {
@@ -132,6 +132,27 @@ static void reap(void *data)
 	}
 }
 
+/* requests start from a timer too: callers may be inside a curl callback */
+static void addpending(void *data)
+{
+	(void)data;
+	addtimer = 0;
+	for (Http *h = reqs, *next; h; h = next) {
+		next = h->next;
+		if (h->added || h->cancelled)
+			continue;
+		h->added = 1;
+		if (curl_multi_add_handle(multi, h->easy) != CURLM_OK) {
+			unlinkreq(h);
+			if (h->o.done)
+				h->o.done(h, 0, "cannot start the request", h->o.ud);
+			curl_easy_cleanup(h->easy);
+			curl_slist_free_all(h->headers);
+			free(h);
+		}
+	}
+}
+
 void http_cancel(Http *h)
 {
 	h->cancelled = 1;
@@ -174,13 +195,8 @@ Http *http_request(const HttpOpts *o)
 		curl_easy_setopt(e, CURLOPT_HTTPHEADER, h->headers);
 	h->next = reqs;
 	reqs = h;
-	if (curl_multi_add_handle(multi, e) != CURLM_OK) {
-		unlinkreq(h);
-		curl_easy_cleanup(e);
-		curl_slist_free_all(h->headers);
-		free(h);
-		return NULL;
-	}
+	if (!addtimer)
+		addtimer = loop_timer(0, 0, addpending, NULL);
 	return h;
 }
 

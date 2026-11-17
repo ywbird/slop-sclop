@@ -11,9 +11,22 @@ sclop.max_tokens = 16384
 sclop.context_window = 200000
 sclop.compact_at = 0.8
 sclop.skills = { '~/.agents/skills', '.agents/skills' }
-sclop.permissions = { ['*'] = 'allow' }
+sclop.permissions = {
+	['*'] = 'allow',
+	read = function(args)
+		local p = args.path or ''
+		if p:match('%.env$') or (p:match('%.env%.') and not p:match('%.env%.example$')) then
+			return 'ask'
+		end
+		return 'allow'
+	end,
+}
 sclop.providers = {}
-sclop.tools = {}
+sclop.tools = setmetatable({}, { __index = {
+	register = function(t)
+		sclop.tools[t.name] = t
+	end,
+} })
 sclop.system = [[
 You are sclop, a minimal coding agent running in the user's terminal.
 You help with software engineering: reading, writing and editing code, and running commands.
@@ -100,6 +113,18 @@ sclop.style = {
 function sclop.timer(ms, fn, rep)
 	local id = core.timer(ms, fn, rep)
 	return { stop = function() core.timer_stop(id) end }
+end
+
+function sclop.spawn(opts)
+	local id, err = core.spawn(opts)
+	if not id then
+		return nil, err
+	end
+	return {
+		write = function(_, s) return core.proc_write(id, s) end,
+		close = function() core.proc_close(id) end,
+		kill = function(_, sig) core.proc_kill(id, sig) end,
+	}
 end
 
 function sclop.http(opts)
@@ -250,11 +275,15 @@ core.dispatch = function(ev, a, b)
 	end
 end
 
+sclop.util = require('sclop.util')
 sclop.input = require('sclop.editor').new()
 sclop.view = require('sclop.view')
 sclop.agent = require('sclop.agent')
 sclop.providers.anthropic = require('sclop.providers.anthropic').new()
 sclop.providers.openai = require('sclop.providers.openai').new()
+for _, name in ipairs{ 'read', 'write', 'edit', 'bash', 'grep', 'glob', 'skill' } do
+	require('sclop.tools.' .. name)
+end
 
 sclop:command_register('quit', function() sclop.quit() end, 'exit')
 sclop:command_register('clear', function()

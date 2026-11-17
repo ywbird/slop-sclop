@@ -43,6 +43,23 @@ void ui_clear(void);
 void ui_flush(void);
 void ui_resize(int cols, int rows);
 
+/* proc.c */
+typedef struct Proc Proc;
+typedef struct {
+	char *const *argv;
+	const char *cwd;
+	int keep_stdin; /* a pipe for proc_write, else /dev/null */
+	int merge;      /* stderr goes to stdout */
+	void (*out)(Proc *p, int fd, const char *buf, size_t len, void *data);
+	void (*exit)(Proc *p, int code, int sig, void *data);
+	void *data;
+} ProcOpts;
+Proc *proc_spawn(const ProcOpts *o);
+void proc_write(Proc *p, const char *buf, size_t len);
+void proc_close(Proc *p);
+void proc_kill(Proc *p, int sig);
+void proc_killall(void);
+
 /* http.c */
 typedef struct Http Http;
 typedef struct {

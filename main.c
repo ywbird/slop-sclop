@@ -39,6 +39,7 @@ int main(int argc, char *argv[])
 	script_stop();
 	ui_clear();
 	term_stop();
+	proc_killall();
 	http_cleanup();
 	return code;
 }
