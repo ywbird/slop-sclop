@@ -152,7 +152,11 @@ function A.after(msg)
 		end
 	end
 	if #calls == 0 then
-		return stop()
+		stop()
+		if A.tokens > sclop.context_window * sclop.compact_at then
+			A.compact()
+		end
+		return
 	end
 	local p = { calls = calls, results = {} }
 	pending = p
@@ -273,6 +277,71 @@ end
 function A.clear()
 	A.messages = {}
 	A.tokens = 0
+end
+
+A.compact_prompt = [[
+Summarize this conversation so you can continue the work from the summary alone. Include the
+user's goals and requests, decisions made, files read or changed (with paths), commands run and
+their important results, and what is left to do. Be concise but complete. Do not call tools.]]
+
+-- the conversation that replaces a compacted one
+function A.summary(text)
+	return {
+		{ role = 'user', content = { { type = 'text',
+			text = 'The conversation so far was compacted into this summary:\n\n' .. text } } },
+		{ role = 'assistant', content = { { type = 'text', text = 'Understood. I will continue from it.' } } },
+	}
+end
+
+-- ask the model for a summary and swap the conversation for it; false if not now
+function A.compact()
+	local provider = sclop.providers[sclop.provider]
+	if A.busy or #A.messages == 0 or not provider then
+		return false
+	end
+	local msgs = {}
+	for i, m in ipairs(A.messages) do
+		msgs[i] = m
+	end
+	msgs[#msgs + 1] = { role = 'user', content = { { type = 'text', text = A.compact_prompt } } }
+	A.busy, streamed = true, {}
+	ticker = sclop.timer(100, sclop.redraw, true)
+	sclop.info('compacting the conversation')
+	request = provider:stream({
+		model = sclop.model,
+		system = A.system_prompt(),
+		messages = msgs,
+		tools = A.tool_list(),
+		max_tokens = sclop.max_tokens,
+	}, {
+		thinking = function() end,
+		text = function() end,
+		done = function(msg)
+			request = nil
+			local text = {}
+			for _, b in ipairs(msg.content) do
+				if b.type == 'text' then
+					text[#text + 1] = b.text
+				end
+			end
+			local summary = table.concat(text)
+			if summary:match('^%s*$') then
+				sclop.error('compaction failed: the summary was empty')
+				return stop()
+			end
+			local before = A.tokens
+			A.messages, A.tokens = A.summary(summary), 0
+			sclop.events.emit(sclop.events.COMPACT, summary)
+			sclop.info(string.format('compacted %s tokens into a summary', view().tokens(before)))
+			stop()
+		end,
+		error = function(err)
+			request = nil
+			sclop.error('compaction failed: ' .. err)
+			stop()
+		end,
+	})
+	return true
 end
 
 local K = sclop.modes.ASK

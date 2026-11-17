@@ -102,6 +102,7 @@ sclop.events = {
 	TOOL_CALL = 'tool_call',
 	TOOL_RESULT = 'tool_result',
 	TURN_END = 'turn_end',
+	COMPACT = 'compact',
 	ERROR = 'error',
 }
 
@@ -329,6 +330,11 @@ sclop:command_register('clear', function()
 	sclop.session.reset()
 	sclop.info('new conversation')
 end, 'start a new conversation')
+sclop:command_register('compact', function()
+	if not sclop.agent.compact() then
+		sclop.info('nothing to compact right now')
+	end
+end, 'summarize the conversation to free context')
 sclop:command_register('model', function(args)
 	if args ~= '' then
 		sclop.set_model(args)

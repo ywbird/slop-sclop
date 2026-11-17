@@ -57,6 +57,8 @@ function S.load(path)
 		local e = json.decode(line)
 		if e and e.role then
 			msgs[#msgs + 1] = e
+		elseif e and e.type == 'compact' then
+			msgs = sclop.agent.summary(e.summary)
 		end
 	end
 	f:close()
@@ -95,6 +97,9 @@ end
 
 function S.enable()
 	sclop.events.subscribe(sclop.events.MESSAGE, S.write)
+	sclop.events.subscribe(sclop.events.COMPACT, function(summary)
+		S.write({ type = 'compact', summary = summary })
+	end)
 end
 
 return S

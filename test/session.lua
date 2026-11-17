@@ -36,3 +36,74 @@ test('sessions are written and continued', function()
 	sclop.agent.clear()
 	sclop.cwd = saved
 end)
+
+local function text(role, t)
+	return { role = role, content = { { type = 'text', text = t } } }
+end
+
+test('a compact line in a session replaces what came before', function()
+	local path = dir .. '/compact.jsonl'
+	local f = io.open(path, 'w')
+	for _, e in ipairs{ text('user', 'old'), { type = 'compact', summary = 'SUM' }, text('user', 'new') } do
+		f:write(sclop.json.encode(e), '\n')
+	end
+	f:close()
+	local msgs = sclop.session.load(path)
+	eq(#msgs, 3)
+	assert(msgs[1].content[1].text:find('SUM', 1, true))
+	eq(msgs[3].content[1].text, 'new')
+end)
+
+-- replies 'S: <number of messages it was sent>'
+sclop.providers.counter = {
+	stream = function(_, req, h)
+		local t = sclop.timer(5, function()
+			h.done(text('assistant', 'S: ' .. #req.messages), { input = 10, output = 1 })
+		end)
+		return { cancel = function() t:stop() end }
+	end,
+}
+
+-- run fn with the counter provider; check(turn_ends, summary) runs after `turns` turns
+local function compaction_test(name, turns, fn, check)
+	atest(name, function(done)
+		local saved = { sclop.commit, sclop.info, sclop.provider, sclop.context_window }
+		local ends, summary = 0, nil
+		local function oncompact(s) summary = s end
+		local h
+		h = function()
+			ends = ends + 1
+			if ends < turns then
+				return
+			end
+			sclop.events.unsubscribe(sclop.events.TURN_END, h)
+			sclop.events.unsubscribe(sclop.events.COMPACT, oncompact)
+			sclop.commit, sclop.info, sclop.provider, sclop.context_window = saved[1], saved[2], saved[3], saved[4]
+			local ok, err = pcall(check, summary, sclop.agent.messages)
+			sclop.agent.clear()
+			done(not ok and err or nil)
+		end
+		sclop.commit, sclop.info, sclop.provider = function() end, function() end, 'counter'
+		sclop.events.subscribe(sclop.events.TURN_END, h)
+		sclop.events.subscribe(sclop.events.COMPACT, oncompact)
+		sclop.agent.clear()
+		fn()
+	end)
+end
+
+compaction_test('compact swaps the conversation for a summary', 1, function()
+	sclop.agent.messages = { text('user', 'a'), text('assistant', 'b') }
+	assert(sclop.agent.compact())
+end, function(summary, m)
+	eq(summary, 'S: 3')
+	eq(#m, 2)
+	assert(m[1].content[1].text:find('S: 3', 1, true))
+end)
+
+compaction_test('a full context compacts by itself', 2, function()
+	sclop.context_window = 10
+	sclop.agent.submit('x')
+end, function(summary, m)
+	eq(summary, 'S: 3')
+	eq(#m, 2)
+end)

@@ -184,6 +184,7 @@ sclop.events.subscribe(ev, fn)  sclop.events.unsubscribe(ev, fn)  sclop.events.e
 | TOOL_CALL | call | 'allow' / 'ask' / 'deny'를 돌려주면 권한 결정 |
 | TOOL_RESULT | call, text, is_error | |
 | TURN_END | | |
+| COMPACT | summary | 대화가 요약으로 바뀜 |
 | ERROR | msg | |
 
 모드와 키맵:
