@@ -24,6 +24,7 @@ test('sessions are written and continued', function()
 	s.write({ role = 'assistant', content = { { type = 'tool_call', id = 'x', name = 'read', args = {} } } })
 	local path = s.path
 	s.reset()
+	eq(io.open(dir .. '/.sclop/.gitignore'):read('*a'), '*\n')
 	local msgs = s.load(path)
 	eq(#msgs, 2)
 	eq(msgs[1].content[1].text, 'hi')

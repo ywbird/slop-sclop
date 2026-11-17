@@ -31,6 +31,14 @@ end
 function S.write(entry)
 	if not file then
 		os.execute('mkdir -p ' .. util.quote(S.dir()))
+		local ignore = sclop.cwd .. '/.sclop/.gitignore'
+		if not exists(ignore) then -- sessions may hold secrets from tool output
+			local f = io.open(ignore, 'w')
+			if f then
+				f:write('*\n')
+				f:close()
+			end
+		end
 		local base = S.dir() .. '/' .. os.date('%Y%m%d-%H%M%S')
 		local path, n = base .. '.jsonl', 1
 		while exists(path) do
