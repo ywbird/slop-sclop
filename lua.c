@@ -150,6 +150,72 @@ static int l_timer_stop(lua_State *L)
 	return 0;
 }
 
+/* fd watches for plugins */
+
+typedef struct LWatch {
+	int fd, ref;
+	struct LWatch *next;
+} LWatch;
+
+static LWatch *lwatches;
+
+static void onwatch(int fd, int revents, void *data)
+{
+	LWatch *w = data;
+	char ev[4];
+	int n = 0;
+	(void)fd;
+	if (revents & LOOP_READ)
+		ev[n++] = 'r';
+	if (revents & LOOP_WRITE)
+		ev[n++] = 'w';
+	if (revents & LOOP_ERROR)
+		ev[n++] = 'e';
+	ev[n] = '\0';
+	lua_rawgeti(L, LUA_REGISTRYINDEX, w->ref);
+	lua_pushstring(L, ev);
+	call(1);
+}
+
+static int l_watch(lua_State *L)
+{
+	int fd = luaL_checkinteger(L, 1);
+	const char *how = luaL_checkstring(L, 2);
+	LWatch *w;
+	luaL_checktype(L, 3, LUA_TFUNCTION);
+	for (w = lwatches; w && w->fd != fd; w = w->next)
+		;
+	if (!w) {
+		if (!(w = calloc(1, sizeof *w)))
+			return luaL_error(L, "out of memory");
+		w->fd = fd;
+		w->ref = LUA_NOREF;
+		w->next = lwatches;
+		lwatches = w;
+	}
+	luaL_unref(L, LUA_REGISTRYINDEX, w->ref);
+	lua_pushvalue(L, 3);
+	w->ref = luaL_ref(L, LUA_REGISTRYINDEX);
+	loop_watch(fd, (strchr(how, 'r') ? LOOP_READ : 0) | (strchr(how, 'w') ? LOOP_WRITE : 0), onwatch, w);
+	return 0;
+}
+
+static int l_unwatch(lua_State *L)
+{
+	int fd = luaL_checkinteger(L, 1);
+	for (LWatch **p = &lwatches; *p; p = &(*p)->next) {
+		if ((*p)->fd == fd) {
+			LWatch *w = *p;
+			*p = w->next;
+			loop_unwatch(fd);
+			luaL_unref(L, LUA_REGISTRYINDEX, w->ref);
+			free(w);
+			break;
+		}
+	}
+	return 0;
+}
+
 /* terminal and screen */
 
 static void onkey(const char *name)
@@ -559,6 +625,8 @@ static const luaL_Reg corefns[] = {
 	{ "feed", l_feed },
 	{ "timer", l_timer },
 	{ "timer_stop", l_timer_stop },
+	{ "watch", l_watch },
+	{ "unwatch", l_unwatch },
 	{ "spawn", l_spawn },
 	{ "proc_write", l_proc_write },
 	{ "proc_close", l_proc_close },
