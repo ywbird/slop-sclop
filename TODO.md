@@ -17,8 +17,8 @@
 - [x] SPEC.md, TODO.md, LICENSE
 
 ### M1 골격
-- [ ] Makefile, config.mk
-- [ ] main.c, loop.c, lua.c: LuaJIT 시작, 런타임 경로, `sclop.main()`
+- [x] Makefile, config.mk
+- [x] main.c, loop.c, lua.c: LuaJIT 시작, 런타임 경로, `sclop.main()`
 
 ### M2 터미널
 - [ ] term.c: raw 모드, 키 해석, paste, 창 크기
