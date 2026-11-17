@@ -1,6 +1,6 @@
 include config.mk
 
-SRC = main.c loop.c lua.c
+SRC = main.c loop.c term.c ui.c lua.c
 OBJ = $(SRC:.c=.o)
 
 all: sclop

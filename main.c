@@ -37,5 +37,7 @@ int main(int argc, char *argv[])
 
 	code = script_start(argc, argv) ? 1 : loop_run(script_idle);
 	script_stop();
+	ui_clear();
+	term_stop();
 	return code;
 }

@@ -4,6 +4,17 @@ local core = require('sclop.core')
 local sclop = { core = core, version = core.version }
 _G.sclop = sclop
 
+-- settings
+sclop.provider = 'anthropic'
+sclop.model = 'claude-sonnet-4-5'
+sclop.max_tokens = 16384
+sclop.context_window = 200000
+sclop.compact_at = 0.8
+sclop.skills = { '~/.agents/skills', '.agents/skills' }
+sclop.permissions = { ['*'] = 'allow' }
+sclop.providers = {}
+sclop.tools = {}
+
 -- events: same contract as vis.events
 local handlers = {}
 
@@ -52,23 +63,158 @@ function sclop.events.emit(ev, ...)
 	end
 end
 
--- async helpers
+-- styles
+local function sgr(code)
+	return function(s)
+		return '\27[' .. code .. 'm' .. s .. '\27[0m'
+	end
+end
 
+sclop.style = {
+	bold = sgr(1), dim = sgr(2), italic = sgr(3),
+	red = sgr(31), green = sgr(32), yellow = sgr(33), blue = sgr(34),
+	magenta = sgr(35), cyan = sgr(36), gray = sgr(90),
+}
+
+-- async helpers
 function sclop.timer(ms, fn, rep)
 	local id = core.timer(ms, fn, rep)
 	return { stop = function() core.timer_stop(id) end }
+end
+
+-- screen
+local dirty = true
+
+function sclop.redraw()
+	dirty = true
+end
+
+function sclop.commit(text)
+	core.commit(text)
+	dirty = true
+end
+
+function sclop.info(text)
+	sclop.commit(sclop.style.dim(text))
+end
+
+function sclop.error(text)
+	if sclop.term then
+		sclop.commit(sclop.style.red(text))
+	else
+		io.stderr:write('sclop: ', text, '\n')
+	end
 end
 
 function sclop.quit(code)
 	core.quit(code or 0)
 end
 
-function sclop.error(text)
-	io.stderr:write('sclop: ', text, '\n')
+-- modes and keymaps
+sclop.modes = { INPUT = 'input', ASK = 'ask' }
+sclop.mode = sclop.modes.INPUT
+sclop.defaults = {} -- mode -> handler for unmapped keys
+local maps = {}
+
+function sclop:map(mode, key, action, help)
+	maps[mode] = maps[mode] or {}
+	maps[mode][key] = action
+	return help
 end
 
-core.dispatch = function(ev, a)
-	if ev == 'error' then
+function sclop:unmap(mode, key)
+	if maps[mode] then
+		maps[mode][key] = nil
+	end
+end
+
+function sclop:mappings(mode)
+	local t = {}
+	for k, v in pairs(maps[mode] or {}) do
+		t[k] = v
+	end
+	return t
+end
+
+function sclop:feedkeys(bytes)
+	core.feed(bytes)
+end
+
+function sclop:dokey(key, depth)
+	local action = maps[self.mode] and maps[self.mode][key]
+	if type(action) == 'string' and (depth or 0) < 8 then
+		return self:dokey(action, (depth or 0) + 1)
+	end
+	if type(action) == 'function' then
+		action(key)
+	elseif self.defaults[self.mode] then
+		self.defaults[self.mode](key)
+	end
+	dirty = true
+end
+
+-- commands
+local commands = {}
+
+function sclop:command_register(name, fn, help)
+	commands[name] = { fn = fn, help = help }
+end
+
+function sclop:command(line)
+	local name, args = line:match('^/(%S+)%s*(.-)%s*$')
+	local c = name and commands[name]
+	if not c then
+		return false
+	end
+	c.fn(args)
+	return true
+end
+
+-- input text: plugins, then commands, then the agent. true if it was taken.
+function sclop.submit(text)
+	if sclop.events.emit(sclop.events.SUBMIT, text) then
+		return true
+	end
+	if text:match('^/') and sclop:command(text) then
+		return true
+	end
+	if sclop.agent.busy then
+		return false
+	end
+	sclop.agent.submit(text)
+	return true
+end
+
+function sclop.set_model(spec)
+	local p, m = spec:match('^([^/]+)/(.+)$')
+	if p and sclop.providers[p] then
+		sclop.provider, sclop.model = p, m
+	else
+		sclop.model = spec
+	end
+end
+
+core.dispatch = function(ev, a, b)
+	if ev == 'key' then
+		if not sclop.events.emit(sclop.events.KEY, a) then
+			sclop:dokey(a)
+		end
+		dirty = true
+	elseif ev == 'paste' then
+		if not sclop.events.emit(sclop.events.PASTE, a) and sclop.mode == sclop.modes.INPUT then
+			sclop.input:insert((a:gsub('\r\n?', '\n')))
+		end
+		dirty = true
+	elseif ev == 'resize' then
+		sclop.events.emit(sclop.events.RESIZE, a, b)
+		dirty = true
+	elseif ev == 'draw' then
+		sclop.events.emit(sclop.events.DRAW)
+		if dirty and sclop.term then
+			dirty = false
+			core.draw(sclop.view.render())
+		end
+	elseif ev == 'error' then
 		sclop.events.emit(sclop.events.ERROR, a)
 		sclop.error(a)
 	elseif ev == 'quit' then
@@ -76,22 +222,87 @@ core.dispatch = function(ev, a)
 	end
 end
 
-local usage = 'usage: sclop [-v] [-h] [-l file.lua [args...]]\n'
+sclop.input = require('sclop.editor').new()
+sclop.view = require('sclop.view')
+sclop.agent = require('sclop.agent')
+
+sclop:command_register('quit', function() sclop.quit() end, 'exit')
+sclop:command_register('clear', function()
+	sclop.agent.clear()
+	sclop.info('new conversation')
+end, 'start a new conversation')
+sclop:command_register('model', function(args)
+	if args ~= '' then
+		sclop.set_model(args)
+	end
+	sclop.info('model: ' .. sclop.provider .. '/' .. sclop.model)
+end, 'show or set the model: /model [provider/]model')
+sclop:command_register('help', function()
+	local names = {}
+	for name in pairs(commands) do
+		names[#names + 1] = name
+	end
+	table.sort(names)
+	for i, name in ipairs(names) do
+		names[i] = string.format('/%-10s %s', name, commands[name].help or '')
+	end
+	sclop.info(table.concat(names, '\n'))
+end, 'list commands')
+
+-- main
+
+local usage = 'usage: sclop [-m model] [-v] [-l file.lua [args...]]\n'
+
+local function loadconfig()
+	local base = os.getenv('XDG_CONFIG_HOME')
+	if not base or base == '' then
+		base = (os.getenv('HOME') or '') .. '/.config'
+	end
+	local path = base .. '/sclop/init.lua'
+	local f = io.open(path)
+	if not f then
+		return
+	end
+	f:close()
+	local ok, err = pcall(dofile, path)
+	if not ok then
+		return 'config: ' .. tostring(err)
+	end
+end
 
 function sclop.main()
-	local a = arg[1]
-	if a == '-v' then
-		print('sclop ' .. sclop.version)
-		return sclop.quit()
-	elseif a == '-l' and arg[2] then
-		local chunk = assert(loadfile(arg[2]))
-		return chunk(unpack(arg, 3))
-	elseif a then
-		io.stderr:write(usage)
-		return sclop.quit(a == '-h' and 0 or 1)
+	local i, model = 1, nil
+	while arg[i] do
+		local a = arg[i]
+		if a == '-v' then
+			print('sclop ' .. sclop.version)
+			return sclop.quit()
+		elseif a == '-l' and arg[i + 1] then
+			local chunk = assert(loadfile(arg[i + 1]))
+			return chunk(unpack(arg, i + 2))
+		elseif a == '-m' and arg[i + 1] then
+			model = arg[i + 1]
+			i = i + 1
+		else
+			io.stderr:write(usage)
+			return sclop.quit(a == '-h' and 0 or 1)
+		end
+		i = i + 1
 	end
-	io.stderr:write('sclop: interactive mode is not built yet\n')
-	sclop.quit(1)
+	local err = loadconfig()
+	if model then
+		sclop.set_model(model)
+	end
+	local ok, terr = core.term_start()
+	if not ok then
+		io.stderr:write('sclop: ', terr, '\n')
+		return sclop.quit(1)
+	end
+	sclop.term = true
+	if err then
+		sclop.error(err)
+	end
+	sclop.events.emit(sclop.events.START)
 end
 
 return sclop

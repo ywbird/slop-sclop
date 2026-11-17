@@ -21,9 +21,9 @@
 - [x] main.c, loop.c, lua.c: LuaJIT 시작, 런타임 경로, `sclop.main()`
 
 ### M2 터미널
-- [ ] term.c: raw 모드, 키 해석, paste, 창 크기
-- [ ] ui.c: live 영역 diff, commit, 글자 폭
-- [ ] editor.lua, view.lua: 입력을 되돌려주는 REPL
+- [x] term.c: raw 모드, 키 해석, paste, 창 크기
+- [x] ui.c: live 영역 diff, commit, 글자 폭
+- [x] editor.lua, view.lua: 입력을 되돌려주는 REPL
 
 ### M3 통신
 - [ ] json.c

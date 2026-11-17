@@ -60,7 +60,12 @@ static void report(const char *msg)
 		fprintf(stderr, "sclop: %s\n", lua_tostring(L, -1));
 		lua_pop(L, 1);
 	}
-	fprintf(stderr, "sclop: %s\n", msg);
+	if (term_active()) {
+		ui_commit(msg, strlen(msg));
+		ui_flush();
+	} else {
+		fprintf(stderr, "sclop: %s\n", msg);
+	}
 }
 
 /* call the function below nargs arguments; errors are reported, not raised */
@@ -143,6 +148,120 @@ static int l_timer_stop(lua_State *L)
 	return 0;
 }
 
+/* terminal and screen */
+
+static void onkey(const char *name)
+{
+	if (pushdispatch("key")) {
+		lua_pushstring(L, name);
+		call(2);
+	}
+}
+
+static void onpaste(const char *s, size_t n)
+{
+	if (pushdispatch("paste")) {
+		lua_pushlstring(L, s, n);
+		call(2);
+	}
+}
+
+static void onresize(int c, int r)
+{
+	if (pushdispatch("resize")) {
+		lua_pushinteger(L, c);
+		lua_pushinteger(L, r);
+		call(3);
+	}
+}
+
+static const TermEvents termevents = { onkey, onpaste, onresize };
+
+static int l_term_start(lua_State *L)
+{
+	if (term_start() < 0) {
+		lua_pushnil(L);
+		lua_pushliteral(L, "not a terminal");
+		return 2;
+	}
+	lua_pushboolean(L, 1);
+	return 1;
+}
+
+static int l_term_stop(lua_State *L)
+{
+	(void)L;
+	term_stop();
+	return 0;
+}
+
+static int l_size(lua_State *L)
+{
+	int c, r;
+	term_size(&c, &r);
+	lua_pushinteger(L, c);
+	lua_pushinteger(L, r);
+	return 2;
+}
+
+static int l_draw(lua_State *L)
+{
+	luaL_checktype(L, 1, LUA_TTABLE);
+	int n = lua_objlen(L, 1);
+	int row = luaL_optinteger(L, 2, n);
+	lua_Integer col = luaL_optinteger(L, 3, 0);
+	const char **lines = lua_newuserdata(L, (n + 1) * sizeof *lines);
+	size_t *lens = lua_newuserdata(L, (n + 1) * sizeof *lens);
+	for (int i = 0; i < n; i++) {
+		lua_rawgeti(L, 1, i + 1);
+		if (lua_type(L, -1) != LUA_TSTRING)
+			return luaL_error(L, "draw: line %d is not a string", i + 1);
+		lines[i] = lua_tolstring(L, -1, &lens[i]);
+		lua_pop(L, 1); /* still referenced by the table */
+	}
+	ui_draw(lines, lens, n, row, col < 0 ? 0 : (size_t)col);
+	return 0;
+}
+
+static int l_commit(lua_State *L)
+{
+	size_t n;
+	const char *s = luaL_checklstring(L, 1, &n);
+	ui_commit(s, n);
+	return 0;
+}
+
+static int l_write(lua_State *L)
+{
+	size_t n;
+	const char *s = luaL_checklstring(L, 1, &n);
+	ui_write(s, n);
+	return 0;
+}
+
+static int l_reset(lua_State *L)
+{
+	(void)L;
+	ui_reset();
+	return 0;
+}
+
+static int l_width(lua_State *L)
+{
+	size_t n;
+	const char *s = luaL_checklstring(L, 1, &n);
+	lua_pushinteger(L, ui_width(s, n));
+	return 1;
+}
+
+static int l_feed(lua_State *L)
+{
+	size_t n;
+	const char *s = luaL_checklstring(L, 1, &n);
+	term_feed(s, n);
+	return 0;
+}
+
 /* misc */
 
 static int l_now(lua_State *L)
@@ -158,6 +277,15 @@ static int l_quit(lua_State *L)
 }
 
 static const luaL_Reg corefns[] = {
+	{ "term_start", l_term_start },
+	{ "term_stop", l_term_stop },
+	{ "size", l_size },
+	{ "draw", l_draw },
+	{ "commit", l_commit },
+	{ "write", l_write },
+	{ "reset", l_reset },
+	{ "width", l_width },
+	{ "feed", l_feed },
 	{ "timer", l_timer },
 	{ "timer_stop", l_timer_stop },
 	{ "now", l_now },
@@ -234,6 +362,7 @@ int script_start(int argc, char *argv[])
 	if (!(L = luaL_newstate()))
 		return -1;
 	luaL_openlibs(L);
+	term_init(&termevents);
 	finddirs(argv[0]);
 	setpath("path", (const char *const[]){ "/?.lua", "/?/init.lua", NULL });
 	setpath("cpath", (const char *const[]){ "/?.so", NULL });
@@ -268,6 +397,7 @@ void script_idle(void)
 {
 	if (pushdispatch("draw"))
 		call(1);
+	ui_flush();
 }
 
 void script_stop(void)
