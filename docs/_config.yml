@@ -2,7 +2,7 @@ title: sclop
 description: Documentation for sclop, a minimal coding agent for the terminal.
 url: "https://ywbird.github.io"
 baseurl: "/slop-sclop"
-theme: minima
+theme: cayman
 
 markdown: kramdown
 kramdown:
