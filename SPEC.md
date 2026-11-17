@@ -68,7 +68,8 @@ test/                   Lua 테스트 (`make test`)
 1. `$SCLOP_PATH` (콜론 구분)
 2. 설정 디렉토리 `$XDG_CONFIG_HOME/sclop` (없으면 `~/.config/sclop`)
 3. 실행 파일 옆 `lua/` (소스 트리에서 바로 실행)
-4. `$(PREFIX)/share/sclop`
+4. 실행 파일 기준 `../share/sclop` (설치 위치를 옮겨도 동작)
+5. `$(PREFIX)/share/sclop`
 
 설정 디렉토리가 앞에 있으므로 같은 이름의 파일로 런타임 모듈을 덮어쓸 수 있다.
 설정 파일은 `$XDG_CONFIG_HOME/sclop/init.lua`.
@@ -283,11 +284,14 @@ sclop.providers.openrouter = require('sclop.providers.openai').new{
 ## 12. tool
 
 ```lua
-sclop.tools.register{ name, description, schema, run = function(args, done) ... end,
-                      summary = function(args) end, render = function(text, is_error, args) end }
+sclop.tools.register{ name, description, schema, run = function(args, done, progress) ... end,
+                      summary = function(args) end, render = function(text, is_error, args) end,
+                      available = function() end }
 ```
-`run`은 끝나면 `done(text, is_error)`를 부르고, 중단 함수를 돌려줄 수 있다.
-`description`은 문자열 또는 함수(요청 때마다 계산).
+`run`은 끝나면 `done(text, is_error)`를 부르고, 중단 함수를 돌려줄 수 있다. 실행 중 출력은
+`progress(text)`로 live 영역에 보여준다. `description`은 문자열 또는 함수(요청 때마다 계산).
+`available`이 false를 돌려주면 그 요청에서는 tool을 내놓지 않는다. 요청에 넣는 tool 목록은
+이름순(같은 요청 앞부분 → prompt cache 적중).
 
 | tool | 인자 | 동작 |
 |---|---|---|
@@ -308,6 +312,7 @@ sclop.tools.register{ name, description, schema, run = function(args, done) ... 
 - 기본: 전부 allow. read는 `.env`, `.env.*` 경로면 ask (`.env.example`은 allow).
 - ask: live 영역에 tool 호출을 보여주고 ASK 모드에서 `y` 허용 / `n` 거부 /
   `a` 이번 실행 동안 이 tool 항상 허용. 거부하면 오류 결과로 모델에 알린다.
+  묻는 방법은 `sclop.agent.ask(call, answer)`를 바꿔서 교체한다 (`-p`가 이렇게 함).
 - `-p` 모드: ask는 거부. `--allow-TOOL`, `--allow-all`로 허용.
 
 ## 14. 세션, compaction, AGENTS.md
@@ -330,6 +335,7 @@ sclop.tools.register{ name, description, schema, run = function(args, done) ... 
     입력창에서 번호(여러 개는 쉼표) 또는 직접 쓴 답을 받는다.
   - `plugins/webfetch`: `webfetch` tool. 받은 HTML은 markdown으로 바꾼다.
 - LuaJIT `ffi`로 C 함수를 바로 부를 수 있고, `package.cpath`의 C 모듈도 `require`된다.
+- LuaJIT에 없는 Lua 5.3 `utf8`은 `char`, `codepoint`, `len`, `charpattern`만 런타임이 채운다.
 
 설정 예:
 ```lua

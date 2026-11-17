@@ -608,6 +608,8 @@ static void finddirs(const char *argv0)
 	if ((p = strrchr(buf, '/'))) {
 		snprintf(p, sizeof buf - (p - buf), "/lua");
 		adddir(buf, strlen(buf));
+		snprintf(p, sizeof buf - (p - buf), "/../share/sclop");
+		adddir(buf, strlen(buf));
 	}
 	adddir(SHAREDIR, strlen(SHAREDIR));
 }
