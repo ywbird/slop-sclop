@@ -54,6 +54,7 @@ lua/sclop/providers/    anthropic.lua, openai.lua
 lua/sclop/tools/        read, write, edit, bash, grep, glob, skill
 lua/plugins/            korean-ime, question, webfetch
 test/                   Lua 테스트 (`make test`)
+docs/en, docs/ko        사용자 문서: 시작하기, 설정, Lua API, 플러그인
 ```
 
 ## 5. 실행 흐름

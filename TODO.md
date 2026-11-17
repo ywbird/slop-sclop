@@ -10,7 +10,7 @@
 - [x] 세션은 프로젝트 `.sclop/sessions`에 저장
 - [x] `-p` 모드: ask는 기본 거부 + 허용 플래그 (`--allow-edit`, `--allow-bash`, `--allow-all` 등)
   - [x] 확정: `--allow-edit`가 write도 허용하는지 → 아니오, 플래그는 `--allow-<tool 이름>` 그대로
-- [ ] docs 폴더에 영어/한글 문서
+- [x] docs 폴더에 영어/한글 문서
   - [x] 확정: `docs/en`, `docs/ko` 폴더
   - [x] 확정: 시작하기, 설정, Lua API, 플러그인 (아키텍처 문서는 빼기)
   - [x] 확정: README는 영어로 바꾸고 문서 링크

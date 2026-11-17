@@ -1,59 +1,41 @@
 # sclop
 
-C와 LuaJIT으로 만든 최소 코딩 에이전트. C는 이벤트 루프, 터미널, 화면, 프로세스, HTTP, JSON만
-하고, 대화 루프와 provider, tool, 입력기, 화면 배치는 전부 Lua라서 설정 파일에서 바꿀 수 있다.
+A minimal coding agent for the terminal, written in C and LuaJIT. If opencode and pi are
+neovim and vim, sclop is vis.
 
-자세한 설계와 Lua API는 [SPEC.md](SPEC.md).
+The C core does the event loop, the terminal, the screen, child processes, HTTP and
+JSON. The conversation loop, the providers, the tools, the input editor and the screen
+layout are Lua, and your configuration can change any of them.
 
-## 빌드
+- Inline UI: output stays in your terminal's scrollback; only the bottom is redrawn
+- Anthropic and OpenAI-compatible APIs, streaming, prompt caching, thinking
+- Tools: read, write, edit, bash, grep, glob, skill
+- Per-tool permissions, sessions, context compaction, a non-interactive mode
+- Lua plugins: a Korean input method, questions to the user, web fetching
+- Links only libc, LuaJIT and libcurl
 
-필요한 것: C99 컴파일러, make, pkg-config, LuaJIT 2.1, libcurl.
+## Quick start
 
 ```sh
 make
-make test             # python3가 있으면 실제 HTTP 테스트도 돈다
-make install          # PREFIX는 config.mk
-```
-
-## 사용
-
-```sh
 export ANTHROPIC_API_KEY=...
-sclop                 # 대화형
-sclop -c              # 이 디렉토리의 마지막 세션 이어하기
-sclop -m openai/gpt-5 # 모델 바꾸기 (provider/model)
-sclop -p '테스트 고쳐줘' --allow-edit --allow-bash
+./sclop
 ```
 
-Enter 전송, Alt+Enter·Ctrl+J 줄바꿈, Esc 중단, Ctrl+C 중단/입력 비움/종료.
-명령: `/help`, `/model`, `/clear`, `/compact`, `/quit`.
+## Documentation
 
-## 설정
+| English | 한국어 |
+|---|---|
+| [Getting started](docs/en/getting-started.md) | [시작하기](docs/ko/getting-started.md) |
+| [Configuration](docs/en/configuration.md) | [설정](docs/ko/configuration.md) |
+| [Lua API](docs/en/lua-api.md) | [Lua API](docs/ko/lua-api.md) |
+| [Plugins](docs/en/plugins.md) | [플러그인](docs/ko/plugins.md) |
 
-`~/.config/sclop/init.lua`:
+The design notes are in [SPEC.md](SPEC.md) and the work list in [TODO.md](TODO.md)
+(both in Korean).
 
-```lua
-sclop.provider = 'anthropic'
-sclop.model = 'claude-sonnet-4-5'
+## License
 
--- 다른 OpenAI 호환 서버
-sclop.providers.openrouter = require('sclop.providers.openai').new{
-	base_url = 'https://openrouter.ai/api/v1', api_key = os.getenv('OPENROUTER_API_KEY') }
-
--- 권한: 'allow' / 'ask' / 'deny' 또는 함수
-sclop.permissions.bash = function(args)
-	return args.command:match('^rm ') and 'ask' or 'allow'
-end
-
--- 한글 입력
-local ime = require('plugins/korean-ime')
-ime.setup()
-sclop:map(sclop.modes.INPUT, '<M-\\>', ime.change_mode)
-
-require('plugins/question')
-require('plugins/webfetch')
-```
-
-## 라이선스
-
-MIT. `lua/plugins/korean-ime.lua`는 vis-korea-ime와 Korean-IME.nvim(Kiyoon Kim)에서 왔다.
+MIT, see [LICENSE](LICENSE). `lua/plugins/korean-ime.lua` comes from
+[vis-korea-ime](https://codeberg.org/ywbird/vis-korea-ime) and
+[Korean-IME.nvim](https://github.com/kiyoon/Korean-IME.nvim) by Kiyoon Kim.
