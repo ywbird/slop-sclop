@@ -150,6 +150,19 @@ function V.assistant(text)
 	return text
 end
 
+-- show a restored conversation
+function V.replay(messages)
+	for _, m in ipairs(messages) do
+		for _, b in ipairs(m.content) do
+			if b.type == 'text' then
+				sclop.commit(m.role == 'user' and V.user(b.text) or V.assistant(b.text))
+			elseif b.type == 'tool_call' then
+				sclop.commit(V.tool(b, sclop.tools[b.name]))
+			end
+		end
+	end
+end
+
 function V.thought(ms)
 	return S.dim(string.format('∴ thought for %ds', math.floor(ms / 1000 + 0.5)))
 end

@@ -316,6 +316,7 @@ sclop.util = require('sclop.util')
 sclop.input = require('sclop.editor').new()
 sclop.view = require('sclop.view')
 sclop.agent = require('sclop.agent')
+sclop.session = require('sclop.session')
 sclop.providers.anthropic = require('sclop.providers.anthropic').new()
 sclop.providers.openai = require('sclop.providers.openai').new()
 for _, name in ipairs{ 'read', 'write', 'edit', 'bash', 'grep', 'glob', 'skill' } do
@@ -325,6 +326,7 @@ end
 sclop:command_register('quit', function() sclop.quit() end, 'exit')
 sclop:command_register('clear', function()
 	sclop.agent.clear()
+	sclop.session.reset()
 	sclop.info('new conversation')
 end, 'start a new conversation')
 sclop:command_register('model', function(args)
@@ -347,7 +349,7 @@ end, 'list commands')
 
 -- main
 
-local usage = 'usage: sclop [-m model] [-v] [-l file.lua [args...]]\n'
+local usage = 'usage: sclop [-c] [-m model] [-v] [-l file.lua [args...]]\n'
 
 local function loadconfig()
 	local base = os.getenv('XDG_CONFIG_HOME')
@@ -367,10 +369,12 @@ local function loadconfig()
 end
 
 function sclop.main()
-	local i, model = 1, nil
+	local i, model, continue = 1, nil, false
 	while arg[i] do
 		local a = arg[i]
-		if a == '-v' then
+		if a == '-c' then
+			continue = true
+		elseif a == '-v' then
 			print('sclop ' .. sclop.version)
 			return sclop.quit()
 		elseif a == '-l' and arg[i + 1] then
@@ -389,6 +393,7 @@ function sclop.main()
 	if model then
 		sclop.set_model(model)
 	end
+	sclop.session.enable()
 	local ok, terr = core.term_start()
 	if not ok then
 		io.stderr:write('sclop: ', terr, '\n')
@@ -397,6 +402,15 @@ function sclop.main()
 	sclop.term = true
 	if err then
 		sclop.error(err)
+	end
+	if continue then
+		local path, n = sclop.session.resume()
+		if path then
+			sclop.view.replay(sclop.agent.messages)
+			sclop.info(string.format('continuing %s (%d messages)', path, n))
+		else
+			sclop.error(n)
+		end
 	end
 	sclop.events.emit(sclop.events.START)
 end

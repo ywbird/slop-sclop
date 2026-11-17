@@ -7,7 +7,7 @@
 - [x] webfetch는 플러그인으로, 기본 동작은 HTML → markdown 변환
   - [ ] 확정: 기본으로 켤지 (지금은 question처럼 설정에서 켬)
 - [x] skill 경로는 Lua 설정에 명시, 기본값 덮어쓰기 가능
-- [ ] 세션은 프로젝트 `.sclop/sessions`에 저장
+- [x] 세션은 프로젝트 `.sclop/sessions`에 저장
 - [ ] `-p` 모드: ask는 기본 거부 + 허용 플래그 (`--allow-edit`, `--allow-bash`, `--allow-all` 등)
   - [ ] 확정: `--allow-edit`가 write도 허용하는지 (opencode는 edit 권한 하나로 edit·write를 함께 다룸)
 
@@ -44,6 +44,6 @@
 
 ### M6 추가 기능
 - [x] AGENTS.md
-- [ ] 세션 저장/재개
+- [x] 세션 저장/재개
 - [ ] compaction (자동 80% + `/compact`)
 - [ ] `-p` 모드
