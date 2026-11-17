@@ -1,0 +1,21 @@
+title: sclop
+description: Documentation for sclop, a minimal coding agent for the terminal.
+url: "https://ywbird.github.io"
+baseurl: "/slop-sclop"
+theme: minima
+
+markdown: kramdown
+kramdown:
+  input: GFM
+
+# Rewrites links to sibling .md files as .html so the existing docs link correctly.
+plugins:
+  - jekyll-relative-links
+relative_links:
+  enabled: true
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default

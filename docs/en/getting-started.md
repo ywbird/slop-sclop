@@ -1,3 +1,8 @@
+---
+title: Getting started
+lang: en
+---
+
 # Getting started
 
 sclop is a small coding agent for the terminal. A C core runs the event loop, the

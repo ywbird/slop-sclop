@@ -1,3 +1,8 @@
+---
+title: Lua API
+lang: ko
+---
+
 # Lua API
 
 sclop의 런타임은 LuaJIT이다. 에이전트가 하는 일은 전부 작은 C 모듈 위에 쓴 Lua다.

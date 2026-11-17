@@ -1,3 +1,8 @@
+---
+title: Lua API
+lang: en
+---
+
 # Lua API
 
 sclop's runtime is LuaJIT. Everything the agent does is Lua, built on a small C module.

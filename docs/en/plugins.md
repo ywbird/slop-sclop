@@ -1,3 +1,8 @@
+---
+title: Plugins
+lang: en
+---
+
 # Plugins
 
 A plugin is a Lua module. There is no plugin manager: put the file where Lua finds

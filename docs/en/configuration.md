@@ -1,3 +1,8 @@
+---
+title: Configuration
+lang: en
+---
+
 # Configuration
 
 sclop reads one Lua file at startup: `$XDG_CONFIG_HOME/sclop/init.lua`, or

@@ -1,3 +1,8 @@
+---
+title: 설정
+lang: ko
+---
+
 # 설정
 
 sclop은 시작할 때 Lua 파일 하나를 읽는다. `$XDG_CONFIG_HOME/sclop/init.lua`, 없으면
