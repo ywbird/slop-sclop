@@ -9,8 +9,14 @@ local function view()
 end
 
 function A.system_prompt()
-	return string.format('%s\n\nEnvironment:\n- Working directory: %s\n- Platform: %s\n- Date: %s',
+	local s = string.format('%s\n\nEnvironment:\n- Working directory: %s\n- Platform: %s\n- Date: %s',
 		sclop.system, sclop.cwd, sclop.platform, os.date('%Y-%m-%d'))
+	local f = io.open(sclop.cwd .. '/AGENTS.md')
+	if f then
+		s = s .. '\n\nInstructions from AGENTS.md in the working directory:\n\n' .. f:read('*a')
+		f:close()
+	end
+	return s
 end
 
 -- tools offered to the model, sorted so the request prefix stays cacheable

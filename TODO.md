@@ -43,7 +43,7 @@
 - [x] webfetch (HTML → markdown)
 
 ### M6 추가 기능
-- [ ] AGENTS.md
+- [x] AGENTS.md
 - [ ] 세션 저장/재개
 - [ ] compaction (자동 80% + `/compact`)
 - [ ] `-p` 모드
