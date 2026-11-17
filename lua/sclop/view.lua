@@ -16,11 +16,33 @@ function V.tokens(n)
 	return n < 1000 and tostring(n) or string.format('%.1fk', n / 1000)
 end
 
--- lines of work in progress; filled by the agent's state
+-- the end of s that fits in w columns
+function V.tail(s, w)
+	local width = sclop.core.width
+	if width(s) <= w then
+		return s
+	end
+	local chars = {}
+	for ch in s:gmatch('[%z\1-\127\194-\244][\128-\191]*') do
+		chars[#chars + 1] = ch
+	end
+	local n, i = 1, #chars
+	while i > 0 and n + width(chars[i]) <= w do
+		n = n + width(chars[i])
+		i = i - 1
+	end
+	return '…' .. table.concat(chars, '', i + 1)
+end
+
+-- lines of work in progress; filled from the agent's state
 function V.live(lines)
 	local a = sclop.agent
-	if a.partial and a.partial ~= '' then
-		lines[#lines + 1] = a.partial
+	if a.thinking then
+		local last = a.thinking:gsub('%s+$', ''):match('[^\n]*$')
+		lines[#lines + 1] = S.dim(S.italic('∴ ' .. V.tail(last, sclop.core.size() - 2)))
+	end
+	if a.partial ~= '' then
+		lines[#lines + 1] = V.assistant(a.partial)
 	end
 end
 
@@ -65,6 +87,14 @@ end
 
 function V.user(text)
 	return '\n' .. S.bold('> ') .. (text:gsub('\n', '\n  ')) .. '\n'
+end
+
+function V.assistant(text)
+	return text
+end
+
+function V.thought(ms)
+	return S.dim(string.format('∴ thought for %ds', math.floor(ms / 1000 + 0.5)))
 end
 
 return V

@@ -26,10 +26,10 @@
 - [x] editor.lua, view.lua: 입력을 되돌려주는 REPL
 
 ### M3 통신
-- [ ] json.c
-- [ ] http.c
-- [ ] sse.lua, providers (anthropic, openai)
-- [ ] 스트리밍 채팅, thinking은 live 영역에만
+- [x] json.c
+- [x] http.c
+- [x] sse.lua, providers (anthropic, openai)
+- [x] 스트리밍 채팅, thinking은 live 영역에만
 
 ### M4 에이전트
 - [ ] proc.c

@@ -14,6 +14,26 @@ sclop.skills = { '~/.agents/skills', '.agents/skills' }
 sclop.permissions = { ['*'] = 'allow' }
 sclop.providers = {}
 sclop.tools = {}
+sclop.system = [[
+You are sclop, a minimal coding agent running in the user's terminal.
+You help with software engineering: reading, writing and editing code, and running commands.
+
+- Look at files before you change them. Prefer small, focused edits.
+- Run commands to check your work when it helps.
+- Keep answers short and direct. The terminal shows plain text, so avoid heavy markdown.
+- Ask before doing anything destructive or irreversible.]]
+
+sclop.cwd = os.getenv('PWD') or io.popen('pwd'):read('*l')
+sclop.platform = jit.os .. '/' .. jit.arch
+
+sclop.json = {
+	encode = core.json_encode,
+	decode = core.json_decode,
+	null = core.null,
+	array = function(t)
+		return setmetatable(t or {}, core.array_mt)
+	end,
+}
 
 -- events: same contract as vis.events
 local handlers = {}
@@ -80,6 +100,14 @@ sclop.style = {
 function sclop.timer(ms, fn, rep)
 	local id = core.timer(ms, fn, rep)
 	return { stop = function() core.timer_stop(id) end }
+end
+
+function sclop.http(opts)
+	local id, err = core.http(opts)
+	if not id then
+		return nil, err
+	end
+	return { cancel = function() core.http_cancel(id) end }
 end
 
 -- screen
@@ -225,6 +253,8 @@ end
 sclop.input = require('sclop.editor').new()
 sclop.view = require('sclop.view')
 sclop.agent = require('sclop.agent')
+sclop.providers.anthropic = require('sclop.providers.anthropic').new()
+sclop.providers.openai = require('sclop.providers.openai').new()
 
 sclop:command_register('quit', function() sclop.quit() end, 'exit')
 sclop:command_register('clear', function()

@@ -27,8 +27,8 @@ int main(int argc, char *argv[])
 
 	utf8locale();
 	signal(SIGPIPE, SIG_IGN);
-	if (loop_init() < 0) {
-		perror("sclop");
+	if (loop_init() < 0 || http_init() < 0) {
+		fputs("sclop: cannot initialize\n", stderr);
 		return 1;
 	}
 	loop_signal(SIGINT, onquit);
@@ -39,5 +39,6 @@ int main(int argc, char *argv[])
 	script_stop();
 	ui_clear();
 	term_stop();
+	http_cleanup();
 	return code;
 }

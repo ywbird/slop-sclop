@@ -262,6 +262,143 @@ static int l_feed(lua_State *L)
 	return 0;
 }
 
+/* http */
+
+typedef struct LHttp {
+	int id, ref;
+	Http *h;
+	struct LHttp *next;
+} LHttp;
+
+static LHttp *lhttps;
+static int lastid;
+
+static void unlinkhttp(LHttp *lh)
+{
+	for (LHttp **p = &lhttps; *p; p = &(*p)->next) {
+		if (*p == lh) {
+			*p = lh->next;
+			return;
+		}
+	}
+}
+
+/* push opts[field] of a handle's options table; 0 if it is not a function */
+static int pushcallback(int ref, const char *field)
+{
+	lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
+	lua_getfield(L, -1, field);
+	lua_remove(L, -2);
+	if (lua_isfunction(L, -1))
+		return 1;
+	lua_pop(L, 1);
+	return 0;
+}
+
+static void onhttpdata(Http *h, const char *buf, size_t n, void *ud)
+{
+	LHttp *lh = ud;
+	(void)h;
+	if (pushcallback(lh->ref, "on_data")) {
+		lua_pushlstring(L, buf, n);
+		call(1);
+	}
+}
+
+static void onhttpdone(Http *h, long status, const char *err, void *ud)
+{
+	LHttp *lh = ud;
+	int ref = lh->ref;
+	(void)h;
+	unlinkhttp(lh);
+	free(lh);
+	int have = pushcallback(ref, "on_done");
+	luaL_unref(L, LUA_REGISTRYINDEX, ref);
+	if (have) {
+		lua_pushinteger(L, status);
+		if (err)
+			lua_pushstring(L, err);
+		else
+			lua_pushnil(L);
+		call(2);
+	}
+}
+
+static int l_http(lua_State *L)
+{
+	HttpOpts o = { 0 };
+	int nh = 0;
+	luaL_checktype(L, 1, LUA_TTABLE);
+	lua_settop(L, 1);
+	lua_getfield(L, 1, "url");     /* 2 */
+	lua_getfield(L, 1, "method");  /* 3 */
+	lua_getfield(L, 1, "body");    /* 4 */
+	lua_getfield(L, 1, "timeout"); /* 5 */
+	lua_getfield(L, 1, "headers"); /* 6 */
+	lua_newtable(L);               /* 7: "Name: value" lines */
+	if (!(o.url = lua_tostring(L, 2)))
+		return luaL_argerror(L, 1, "url is required");
+	o.method = lua_tostring(L, 3);
+	o.body = lua_tolstring(L, 4, &o.bodylen);
+	o.timeout = (long)lua_tonumber(L, 5);
+	if (lua_istable(L, 6)) {
+		lua_pushnil(L);
+		while (lua_next(L, 6)) {
+			if (lua_type(L, -2) == LUA_TSTRING) {
+				lua_pushvalue(L, -2);
+				lua_pushliteral(L, ": ");
+				lua_pushvalue(L, -3);
+				lua_concat(L, 3);
+				lua_rawseti(L, 7, ++nh);
+			}
+			lua_pop(L, 1);
+		}
+	}
+	const char **hdrs = lua_newuserdata(L, (nh + 1) * sizeof *hdrs);
+	for (int i = 0; i < nh; i++) {
+		lua_rawgeti(L, 7, i + 1);
+		hdrs[i] = lua_tostring(L, -1);
+		lua_pop(L, 1);
+	}
+	hdrs[nh] = NULL;
+	o.headers = hdrs;
+	o.data = onhttpdata;
+	o.done = onhttpdone;
+
+	LHttp *lh = calloc(1, sizeof *lh);
+	if (!lh)
+		return luaL_error(L, "out of memory");
+	o.ud = lh;
+	if (!(lh->h = http_request(&o))) {
+		free(lh);
+		lua_pushnil(L);
+		lua_pushliteral(L, "http: cannot start the request");
+		return 2;
+	}
+	lh->id = ++lastid;
+	lua_pushvalue(L, 1);
+	lh->ref = luaL_ref(L, LUA_REGISTRYINDEX);
+	lh->next = lhttps;
+	lhttps = lh;
+	lua_pushinteger(L, lh->id);
+	return 1;
+}
+
+static int l_http_cancel(lua_State *L)
+{
+	int id = luaL_checkinteger(L, 1);
+	for (LHttp *lh = lhttps; lh; lh = lh->next) {
+		if (lh->id == id) {
+			http_cancel(lh->h);
+			unlinkhttp(lh);
+			luaL_unref(L, LUA_REGISTRYINDEX, lh->ref);
+			free(lh);
+			break;
+		}
+	}
+	return 0;
+}
+
 /* misc */
 
 static int l_now(lua_State *L)
@@ -288,6 +425,8 @@ static const luaL_Reg corefns[] = {
 	{ "feed", l_feed },
 	{ "timer", l_timer },
 	{ "timer_stop", l_timer_stop },
+	{ "http", l_http },
+	{ "http_cancel", l_http_cancel },
 	{ "now", l_now },
 	{ "quit", l_quit },
 	{ NULL, NULL },
@@ -369,6 +508,7 @@ int script_start(int argc, char *argv[])
 
 	lua_newtable(L);
 	luaL_setfuncs(L, corefns, 0);
+	json_open(L);
 	lua_pushliteral(L, VERSION);
 	lua_setfield(L, -2, "version");
 	lua_pushvalue(L, -1);

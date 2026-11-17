@@ -43,6 +43,29 @@ void ui_clear(void);
 void ui_flush(void);
 void ui_resize(int cols, int rows);
 
+/* http.c */
+typedef struct Http Http;
+typedef struct {
+	const char *url, *method;
+	const char *body;
+	size_t bodylen;
+	const char *const *headers; /* "Name: value", NULL terminated */
+	long timeout;               /* ms, 0 for none */
+	void (*data)(Http *h, const char *buf, size_t len, void *ud);
+	void (*done)(Http *h, long status, const char *err, void *ud);
+	void *ud;
+} HttpOpts;
+int http_init(void);
+void http_cleanup(void);
+Http *http_request(const HttpOpts *o);
+void http_cancel(Http *h);
+
+/* json.c */
+struct lua_State;
+int json_encode(struct lua_State *L);
+int json_decode(struct lua_State *L);
+void json_open(struct lua_State *L);
+
 /* lua.c */
 int script_start(int argc, char *argv[]);
 void script_idle(void);
