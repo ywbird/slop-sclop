@@ -46,4 +46,4 @@
 - [x] AGENTS.md
 - [x] 세션 저장/재개
 - [x] compaction (자동 80% + `/compact`)
-- [ ] `-p` 모드
+- [x] `-p` 모드

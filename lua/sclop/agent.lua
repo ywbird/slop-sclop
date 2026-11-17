@@ -124,11 +124,7 @@ local function run_tool(call, done)
 	if d == 'deny' then
 		return finish('permission denied by the user\'s settings', true)
 	elseif d == 'ask' then
-		A.asking = call
-		sclop.mode = sclop.modes.ASK
-		A.answer = function(answer)
-			A.asking, A.answer = nil, nil
-			sclop.mode = sclop.modes.INPUT
+		return A.ask(call, function(answer)
 			if answer == 'n' then
 				return finish('the user denied permission', true)
 			end
@@ -136,11 +132,21 @@ local function run_tool(call, done)
 				sclop.permissions[call.name] = 'allow'
 			end
 			execute()
-		end
-		sclop.redraw()
-		return
+		end)
 	end
 	execute()
+end
+
+-- ask the user about a call; answer('y'), answer('n') or answer('a') for always
+function A.ask(call, answer)
+	A.asking = call
+	sclop.mode = sclop.modes.ASK
+	A.answer = function(key)
+		A.asking, A.answer = nil, nil
+		sclop.mode = sclop.modes.INPUT
+		answer(key)
+	end
+	sclop.redraw()
 end
 
 -- after a reply: run its tool calls in order, then ask again; else the turn is over

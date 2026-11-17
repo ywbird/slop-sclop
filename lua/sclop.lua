@@ -73,7 +73,10 @@ You help with software engineering: reading, writing and editing code, and runni
 - Keep answers short and direct. The terminal shows plain text, so avoid heavy markdown.
 - Ask before doing anything destructive or irreversible.]]
 
-sclop.cwd = os.getenv('PWD') or io.popen('pwd'):read('*l')
+local ffi = require('ffi')
+ffi.cdef('char *getcwd(char *buf, size_t size);')
+local cwd = ffi.C.getcwd(ffi.new('char[4096]'), 4096)
+sclop.cwd = cwd ~= nil and ffi.string(cwd) or os.getenv('PWD') or '.'
 sclop.platform = jit.os .. '/' .. jit.arch
 
 sclop.json = {
@@ -355,7 +358,43 @@ end, 'list commands')
 
 -- main
 
-local usage = 'usage: sclop [-c] [-m model] [-v] [-l file.lua [args...]]\n'
+local usage = 'usage: sclop [-c] [-m model] [-p [prompt] [--allow-TOOL | --allow-all]] [-v]\n'
+	.. '       sclop -l file.lua [args...]\n'
+
+-- -p: answer one prompt on stdout, without a terminal; 'ask' means deny unless allowed
+local function printmode(prompt, allow)
+	if prompt == '-' then
+		prompt = io.read('*a')
+	end
+	if not prompt or prompt:match('^%s*$') then
+		io.stderr:write('sclop: the prompt is empty\n')
+		return sclop.quit(1)
+	end
+	sclop.commit, sclop.info = function() end, function() end
+	sclop.agent.ask = function(call, answer)
+		local ok = allow.all or allow[call.name]
+		if not ok then
+			io.stderr:write('sclop: denied ', call.name, ' (allow it with --allow-', call.name, ')\n')
+		end
+		answer(ok and 'y' or 'n')
+	end
+	sclop.events.subscribe(sclop.events.TURN_END, function()
+		local last = sclop.agent.messages[#sclop.agent.messages]
+		if not last or last.role ~= 'assistant' then
+			return sclop.quit(1)
+		end
+		local text = {}
+		for _, b in ipairs(last.content) do
+			if b.type == 'text' then
+				text[#text + 1] = b.text
+			end
+		end
+		io.write(table.concat(text), '\n')
+		io.stdout:flush()
+		sclop.quit(0)
+	end)
+	sclop.agent.submit(prompt)
+end
 
 local function loadconfig()
 	local base = os.getenv('XDG_CONFIG_HOME')
@@ -375,11 +414,20 @@ local function loadconfig()
 end
 
 function sclop.main()
-	local i, model, continue = 1, nil, false
+	local i, model, continue, prompt, allow = 1, nil, false, nil, {}
 	while arg[i] do
 		local a = arg[i]
 		if a == '-c' then
 			continue = true
+		elseif a == '-p' then
+			local nxt = arg[i + 1]
+			prompt = '-'
+			if nxt and (nxt == '-' or nxt:sub(1, 1) ~= '-') then
+				prompt = nxt
+				i = i + 1
+			end
+		elseif a:match('^%-%-allow%-.') then
+			allow[a:sub(9)] = true
 		elseif a == '-v' then
 			print('sclop ' .. sclop.version)
 			return sclop.quit()
@@ -400,6 +448,20 @@ function sclop.main()
 		sclop.set_model(model)
 	end
 	sclop.session.enable()
+	local resumed, count
+	if continue then
+		resumed, count = sclop.session.resume()
+	end
+	if prompt then
+		if err then
+			sclop.error(err)
+		end
+		if continue and not resumed then
+			sclop.error(count)
+			return sclop.quit(1)
+		end
+		return printmode(prompt, allow)
+	end
 	local ok, terr = core.term_start()
 	if not ok then
 		io.stderr:write('sclop: ', terr, '\n')
@@ -409,14 +471,11 @@ function sclop.main()
 	if err then
 		sclop.error(err)
 	end
-	if continue then
-		local path, n = sclop.session.resume()
-		if path then
-			sclop.view.replay(sclop.agent.messages)
-			sclop.info(string.format('continuing %s (%d messages)', path, n))
-		else
-			sclop.error(n)
-		end
+	if resumed then
+		sclop.view.replay(sclop.agent.messages)
+		sclop.info(string.format('continuing %s (%d messages)', resumed, count))
+	elseif continue then
+		sclop.error(count)
 	end
 	sclop.events.emit(sclop.events.START)
 end
