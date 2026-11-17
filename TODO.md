@@ -3,8 +3,8 @@
 ## 피드백
 
 - [x] 이름에 c 포함 → `sclop`
-- [ ] question은 플러그인으로 구현
-- [ ] webfetch는 플러그인으로, 기본 동작은 HTML → markdown 변환
+- [x] question은 플러그인으로 구현
+- [x] webfetch는 플러그인으로, 기본 동작은 HTML → markdown 변환
   - [ ] 확정: 기본으로 켤지 (지금은 question처럼 설정에서 켬)
 - [x] skill 경로는 Lua 설정에 명시, 기본값 덮어쓰기 가능
 - [ ] 세션은 프로젝트 `.sclop/sessions`에 저장
@@ -38,9 +38,9 @@
 - [x] 권한 + ask
 
 ### M5 플러그인
-- [ ] korean-ime 포팅
-- [ ] question
-- [ ] webfetch (HTML → markdown)
+- [x] korean-ime 포팅
+- [x] question
+- [x] webfetch (HTML → markdown)
 
 ### M6 추가 기능
 - [ ] AGENTS.md

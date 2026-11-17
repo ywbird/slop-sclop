@@ -4,6 +4,43 @@ local core = require('sclop.core')
 local sclop = { core = core, version = core.version }
 _G.sclop = sclop
 
+-- LuaJIT lacks Lua 5.3's utf8 library; enough of it for plugins
+if not utf8 then
+	utf8 = { charpattern = '[%z\1-\127\194-\244][\128-\191]*' }
+	function utf8.char(...)
+		local out = {}
+		for i, c in ipairs{ ... } do
+			if c < 0x80 then
+				out[i] = string.char(c)
+			elseif c < 0x800 then
+				out[i] = string.char(0xc0 + math.floor(c / 0x40), 0x80 + c % 0x40)
+			elseif c < 0x10000 then
+				out[i] = string.char(0xe0 + math.floor(c / 0x1000), 0x80 + math.floor(c / 0x40) % 0x40, 0x80 + c % 0x40)
+			else
+				out[i] = string.char(0xf0 + math.floor(c / 0x40000), 0x80 + math.floor(c / 0x1000) % 0x40,
+					0x80 + math.floor(c / 0x40) % 0x40, 0x80 + c % 0x40)
+			end
+		end
+		return table.concat(out)
+	end
+	function utf8.codepoint(s, i)
+		i = i or 1
+		local c = s:byte(i)
+		if not c or c < 0x80 then
+			return c
+		end
+		local n = c >= 0xf0 and 3 or c >= 0xe0 and 2 or 1
+		local cp = c % 2 ^ (6 - n)
+		for j = 1, n do
+			cp = cp * 64 + (s:byte(i + j) or 0) % 64
+		end
+		return cp
+	end
+	function utf8.len(s)
+		return select(2, s:gsub('[^\128-\191]', ''))
+	end
+end
+
 -- settings
 sclop.provider = 'anthropic'
 sclop.model = 'claude-sonnet-4-5'
