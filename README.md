@@ -1,33 +1,58 @@
+<div align="center">
+
 # sclop
 
-<div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/AI-X-dark.svg">
-    <img src="assets/AI-X-light.svg" alt="AI:X" width="160">
-  </picture>
+**A minimal coding agent for the terminal, written in C and LuaJIT.**
+
+If opencode and pi are neovim and vim, sclop is vis.
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Language](https://img.shields.io/badge/language-C99%20%2B%20LuaJIT-grey.svg)](SPEC.md)
+[![Links](https://img.shields.io/badge/links-libc%20%C2%B7%20LuaJIT%20%C2%B7%20libcurl-grey.svg)](#design)
+
+<img src="assets/AI-X-light.svg" alt="AI:X" width="120">
+
 </div>
 
-A minimal coding agent for the terminal, written in C and LuaJIT. If opencode and pi are
-neovim and vim, sclop is vis.
+## Design
 
-The C core does the event loop, the terminal, the screen, child processes, HTTP and
-JSON. The conversation loop, the providers, the tools, the input editor and the screen
-layout are Lua, and your configuration can change any of them.
+**Mechanism in C, policy in Lua.** The C core does the event loop, the terminal, the
+screen, child processes, HTTP and JSON — and nothing else. The conversation loop, the
+providers, the tools, the input editor and the screen layout are Lua, and your
+configuration can replace any of them.
 
-- Inline UI: output stays in your terminal's scrollback; only the bottom is redrawn
+```
+┌─ C core ─────────────────┐      ┌─ Lua (LuaJIT) ────────────────┐
+│ loop   term   ui   proc  │◄────►│ agent    providers    tools   │
+│ http   json        lua.c │      │ editor   view        plugins  │
+└──────────────────────────┘      └───────────────────────────────┘
+```
+
+Configuration is a single Lua file. The code stays flat and short, like vis.
+
+## Features
+
+- Inline UI — output stays in your terminal's scrollback; only the bottom is redrawn
 - Anthropic and OpenAI-compatible APIs, streaming, prompt caching, thinking
-- Tools: read, write, edit, bash, grep, glob, skill
-- Per-tool permissions, sessions, context compaction, a non-interactive mode
+- Tools: `read`, `write`, `edit`, `bash`, `grep`, `glob`, `skill`
+- Per-tool permissions (`allow` / `ask` / `deny`), sessions, context compaction,
+  a non-interactive mode (`-p`)
 - Lua plugins: a Korean input method, questions to the user, web fetching
-- Links only libc, LuaJIT and libcurl
+- `AGENTS.md` loading, runtime module overrides, `make test`
 
 ## Quick start
 
 ```sh
 make
+make test
 export ANTHROPIC_API_KEY=...
 ./sclop
 ```
+
+You need a C99 compiler, make, pkg-config, LuaJIT 2.1 and libcurl.
+`OPENAI_API_KEY` selects the OpenAI-compatible provider; keys can also live in the
+config file. See [getting started](docs/en/getting-started.md) for install and
+runtime paths.
 
 ## Documentation
 
