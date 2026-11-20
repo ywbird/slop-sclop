@@ -63,6 +63,8 @@ runtime paths.
 | [Lua API](docs/en/lua-api.md) | [Lua API](docs/ko/lua-api.md) |
 | [Plugins](docs/en/plugins.md) | [플러그인](docs/ko/plugins.md) |
 
+The rendered docs are at <https://ywbird.github.io/slop-sclop/>.
+
 The design notes are in [SPEC.md](SPEC.md) and the work list in [TODO.md](TODO.md)
 (both in Korean).
 
