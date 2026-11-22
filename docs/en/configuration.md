@@ -108,6 +108,7 @@ request to the next (tools and JSON keys are sorted) so the cache keeps hitting.
    - Run commands to check your work when it helps.
    - Keep answers short and direct. The terminal shows plain text, so avoid heavy markdown.
    - Ask before doing anything destructive or irreversible.
+   - Skills available to you are listed in the skill tool's description. Answer from that list; do not scan skill directories unless the user asks you to.
    ```
 
 2. the environment:
