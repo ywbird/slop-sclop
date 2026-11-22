@@ -149,7 +149,8 @@ local function compose_2s(key)
 		if isvowel then
 			syllable.state = 2
 			return update_syllable(syllable.init, value2, -1)
-		elseif has_value({ 5, 11, 19, 23, 29 }, value1) and value1 == syllable.init then
+		-- ㄱ, ㄷ, ㅂ, ㅅ, ㅈ double to ㄲ, ㄸ, ㅃ, ㅆ, ㅉ (syllable.init + 1)
+		elseif has_value({ 0, 3, 7, 9, 12 }, value1) and value1 == syllable.init then
 			return update_syllable(syllable.init + 1, -1, -1)
 		end
 	elseif syllable.state == 2 or syllable.state == 5 then -- medial jamo is present
