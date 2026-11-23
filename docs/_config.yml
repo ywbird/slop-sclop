@@ -9,6 +9,10 @@ minima:
   skin: solarized-light
   nav_pages:
     - index.md
+  social_links:
+    - title: Sclop repository at GitHub
+      icon: github
+      url: "https://github.com/ywbird/slop-sclop"
 
 markdown: kramdown
 kramdown:
