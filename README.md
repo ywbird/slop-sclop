@@ -35,8 +35,8 @@ Configuration is a single Lua file. The code stays flat and short, like vis.
 - Inline UI — output stays in your terminal's scrollback; only the bottom is redrawn
 - Anthropic and OpenAI-compatible APIs, streaming, prompt caching, thinking
 - Tools: `read`, `write`, `edit`, `bash`, `grep`, `glob`, `skill`
-- Per-tool permissions (`allow` / `ask` / `deny`), sessions, context compaction,
-  a non-interactive mode (`-p`)
+- Per-tool permissions (`allow` / `ask` / `deny`), sessions (`-c` continues the last
+  one, `-c FILE` any of them), context compaction, a non-interactive mode (`-p`)
 - Lua plugins: a Korean input method, questions to the user, web fetching
 - `AGENTS.md` loading, runtime module overrides, `make test`
 

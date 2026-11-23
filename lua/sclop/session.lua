@@ -81,11 +81,37 @@ function S.latest()
 	return name and S.dir() .. '/' .. name
 end
 
--- continue the latest session: returns its path and message count
-function S.resume()
-	local path = S.latest()
-	if not path then
-		return nil, 'no session to continue in ' .. S.dir()
+-- a session file begins with its header line
+local function issession(path)
+	local f = io.open(path)
+	if not f then
+		return false
+	end
+	local first = f:read('*l')
+	f:close()
+	local e = first and json.decode(first)
+	return e ~= nil and e.type == 'session'
+end
+
+-- continue a session: the given file, or the latest one of this directory.
+-- returns its path and message count
+function S.resume(path)
+	if path then
+		path = util.expand(path)
+		if path:sub(1, 1) ~= '/' then
+			path = sclop.cwd .. '/' .. path
+		end
+		if not exists(path) then
+			return nil, 'no such session file ' .. path
+		end
+		if not issession(path) then
+			return nil, path .. ' is not a session file'
+		end
+	else
+		path = S.latest()
+		if not path then
+			return nil, 'no session to continue in ' .. S.dir()
+		end
 	end
 	local msgs, err = S.load(path)
 	if not msgs or not open(path) then

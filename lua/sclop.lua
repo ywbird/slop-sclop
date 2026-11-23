@@ -359,7 +359,7 @@ end, 'list commands')
 
 -- main
 
-local usage = 'usage: sclop [-c] [-m model] [-p [prompt] [--allow-TOOL | --allow-all]] [-v]\n'
+local usage = 'usage: sclop [-c [session]] [-m model] [-p [prompt] [--allow-TOOL | --allow-all]] [-v]\n'
 	.. '       sclop -l file.lua [args...]\n'
 
 -- -p: answer one prompt on stdout, without a terminal; 'ask' means deny unless allowed
@@ -414,12 +414,20 @@ local function loadconfig()
 	end
 end
 
+local function ispath(a)
+	return a ~= nil and a:sub(1, 1) ~= '-'
+end
+
 function sclop.main()
-	local i, model, continue, prompt, allow = 1, nil, false, nil, {}
+	local i, model, continue, prompt, allow = 1, nil, nil, nil, {}
 	while arg[i] do
 		local a = arg[i]
 		if a == '-c' then
 			continue = true
+			if ispath(arg[i + 1]) then
+				continue = arg[i + 1]
+				i = i + 1
+			end
 		elseif a == '-p' then
 			local nxt = arg[i + 1]
 			prompt = '-'
@@ -451,7 +459,7 @@ function sclop.main()
 	sclop.session.enable()
 	local resumed, count
 	if continue then
-		resumed, count = sclop.session.resume()
+		resumed, count = sclop.session.resume(continue ~= true and continue or nil)
 	end
 	if prompt then
 		if err then

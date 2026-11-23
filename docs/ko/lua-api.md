@@ -302,8 +302,9 @@ end
 ## 세션
 
 `sclop.session`: `dir()`, `write(entry)`, `load(path)` → 메시지들, `latest()`,
-`resume()` → 경로와 메시지 수, `reset()`(다음 메시지부터 새 파일), `enable()`,
-`path`(현재 파일).
+`resume(path?)` → 경로와 메시지 수, `reset()`(다음 메시지부터 새 파일), `enable()`,
+`path`(현재 파일). `resume`은 준 세션 파일(상대 경로는 작업 디렉토리 기준)을,
+경로가 없으면 가장 최근 세션을 이어 쓴다.
 
 세션 파일은 한 줄에 JSON 값 하나다. 머리 `{"type":"session","model":...,"cwd":...}`, 그다음 메시지들,
 대화를 요약한 자리에는 `{"type":"compact","summary":...}`.

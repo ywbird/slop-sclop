@@ -79,7 +79,7 @@ docs/en, docs/ko        사용자 문서: 시작하기, 설정, Lua API, 플러�
 ```
 sclop [옵션]
   -m MODEL       모델. 'provider/model'이고 provider가 등록돼 있으면 provider도 바꿈
-  -c             이 디렉토리의 마지막 세션 이어하기
+  -c [SESSION]   세션 이어하기. SESSION(절대/상대 경로)이 없으면 이 디렉토리의 마지막 세션
   -p [PROMPT]    비대화형: 답만 stdout에 출력하고 종료. PROMPT가 없거나 '-'면 stdin
   --allow-TOOL   -p에서 해당 tool의 ask를 허용. --allow-all은 전부
   -l FILE [ARG]  설정·터미널 없이 런타임만 올리고 Lua 파일 실행 (테스트, 스크립트)
@@ -320,7 +320,8 @@ sclop.tools.register{ name, description, schema, run = function(args, done, prog
 
 - 세션: `.sclop/sessions/<시각>.jsonl`. 첫 줄은 메타
   `{"type":"session","model":...,"cwd":...}`, 다음부터 메시지 한 줄에 하나.
-  메시지가 추가될 때마다 append. `-c`는 가장 최근 파일을 불러와 이어 쓴다.
+  메시지가 추가될 때마다 append. `-c`는 가장 최근 파일을, `-c PATH`는 그 파일을 불러와
+  이어 쓴다(상대 경로는 작업 디렉토리 기준, 없는 파일이나 머리가 없는 파일은 오류).
 - compaction: 마지막 요청의 입력 토큰이 `context_window * compact_at`를 넘으면 자동,
   `/compact`로 수동. 지금까지의 대화를 요약하게 한 뒤 대화를 요약 메시지 하나로 바꾼다.
   세션 파일에는 `{"type":"compact","summary":...}` 줄을 남긴다.

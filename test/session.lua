@@ -42,6 +42,41 @@ local function text(role, t)
 	return { role = role, content = { { type = 'text', text = t } } }
 end
 
+test('resume takes an explicit session path', function()
+	local saved, s = sclop.cwd, sclop.session
+	sclop.cwd = dir
+	local old = dir .. '/.sclop/sessions/old.jsonl'
+	local f = io.open(old, 'w')
+	f:write(sclop.json.encode({ type = 'session', model = 'x/y', cwd = dir }), '\n')
+	f:write(sclop.json.encode(text('user', 'old')), '\n')
+	f:close()
+	local p, n = s.resume(old)
+	eq(p, old)
+	eq(n, 1)
+	eq(sclop.agent.messages[1].content[1].text, 'old')
+	s.reset()
+
+	local rel, rn = s.resume('.sclop/sessions/old.jsonl') -- relative to the working directory
+	eq(rel, old)
+	eq(rn, 1)
+	s.reset()
+	sclop.agent.clear()
+
+	local missing, merr = s.resume(dir .. '/nope.jsonl')
+	eq(missing, nil)
+	assert(merr:find('no such session file', 1, true), merr)
+
+	local plain = dir .. '/plain.jsonl'
+	f = io.open(plain, 'w')
+	f:write('{"role":"user","content":[]}\n')
+	f:close()
+	local bad, berr = s.resume(plain)
+	eq(bad, nil)
+	assert(berr:find('is not a session file', 1, true), berr)
+	s.reset()
+	sclop.cwd = saved
+end)
+
 test('a compact line in a session replaces what came before', function()
 	local path = dir .. '/compact.jsonl'
 	local f = io.open(path, 'w')

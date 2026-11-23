@@ -311,8 +311,9 @@ end
 ## Sessions
 
 `sclop.session`: `dir()`, `write(entry)`, `load(path)` → messages, `latest()`,
-`resume()` → path and message count, `reset()` (the next message starts a new file),
-`enable()`, and `path`, the current file.
+`resume(path?)` → path and message count, `reset()` (the next message starts a new file),
+`enable()`, and `path`, the current file. `resume` continues the given session file
+(a relative path from the working directory), or the latest one when there is no path.
 
 A session file holds one JSON value per line: a header
 `{"type":"session","model":...,"cwd":...}`, then every message, and

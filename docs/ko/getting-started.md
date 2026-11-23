@@ -58,13 +58,14 @@ make install
 sclop                       # 대화형
 sclop -m openai/gpt-5       # 모델 고르기
 sclop -c                    # 이 디렉토리의 마지막 세션 이어하기
+sclop -c .sclop/sessions/20251123-101500.jsonl   # 그 세션 파일 이어하기
 sclop -p 'README.md 요약해줘' > summary.txt
 ```
 
 | 옵션 | 뜻 |
 |---|---|
 | `-m MODEL` | 모델. `provider/model` 형식이고 그 이름의 provider가 있으면 provider도 바꾼다 |
-| `-c` | 작업 디렉토리의 가장 최근 세션을 이어 한다 |
+| `-c [SESSION]` | 세션을 이어 한다. 경로를 주면 그 파일, 없으면 작업 디렉토리의 가장 최근 세션 |
 | `-p [PROMPT]` | 대화형 화면 없이 프롬프트 하나에 답한다. PROMPT가 없거나 `-`이면 stdin에서 읽는다 |
 | `--allow-TOOL` | `-p`에서, 권한이 `ask`인 tool을 실행한다. `--allow-all`은 전부 |
 | `-l FILE [ARGS]` | 설정과 터미널 없이 런타임만 올리고 Lua 파일을 실행한다 |
@@ -147,7 +148,8 @@ Esc는 거부, Ctrl+C는 이번 턴을 멈춘다.
 메시지는 전부 작업 디렉토리의 `.sclop/sessions/<시각>.jsonl`에 덧붙여 저장된다.
 그 디렉토리를 만들 때 `.sclop/.gitignore`도 같이 만들어서, tool 출력 속 비밀이 들어갈 수
 있는 세션 파일이 git에 올라가지 않게 한다. `sclop -c`는 가장 최근 세션을 불러와 보여주고
-그 파일에 이어 쓴다.
+그 파일에 이어 쓴다. `sclop -c .sclop/sessions/<시각>.jsonl`처럼 경로를 주면 그 세션을 이어 쓴다.
+상대 경로는 작업 디렉토리 기준이고, 없는 파일이나 세션 파일이 아니면 오류로 끝난다.
 
 ## compaction
 
@@ -167,6 +169,7 @@ stdout에 찍고 끝난다.
 sclop -p 'make test가 왜 실패해?' --allow-bash
 echo 'TODO 주석 목록 뽑아줘' | sclop -p
 sclop -c -p '이제 첫 번째 거 고쳐줘'
+sclop -c .sclop/sessions/20251123-101500.jsonl -p '그 세션에 이어서'
 ```
 
 - 권한이 `ask`인 tool은 `--allow-TOOL`이나 `--allow-all`로 허용하지 않으면 거부한다.

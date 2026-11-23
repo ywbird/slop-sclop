@@ -60,13 +60,14 @@ Keys can also be set in the configuration file, see [configuration](configuratio
 sclop                       # interactive
 sclop -m openai/gpt-5       # choose a model
 sclop -c                    # continue the last session of this directory
+sclop -c .sclop/sessions/20251123-101500.jsonl   # continue that session file
 sclop -p 'summarize README.md' > summary.txt
 ```
 
 | Option | Meaning |
 |---|---|
 | `-m MODEL` | the model. `provider/model` also switches the provider, if one with that name exists |
-| `-c` | continue the most recent session of the working directory |
+| `-c [SESSION]` | continue a session: the file at that path, or the most recent one of the working directory |
 | `-p [PROMPT]` | answer one prompt without the interactive screen. Reads the prompt from stdin if it is missing or `-` |
 | `--allow-TOOL` | with `-p`: run a tool whose permission is `ask`. `--allow-all` allows all of them |
 | `-l FILE [ARGS]` | run a Lua file with the runtime loaded, but without the configuration or the terminal |
@@ -150,7 +151,9 @@ By default every tool runs without asking, except `read` on `.env` files.
 Every message is appended to `.sclop/sessions/<time>.jsonl` in the working directory.
 When sclop creates that directory it also writes `.sclop/.gitignore`, so the session
 files, which can contain secrets from tool output, stay out of git. `sclop -c` loads the
-most recent session, prints it, and keeps appending to it.
+most recent session, prints it, and keeps appending to it. `sclop -c .sclop/sessions/<time>.jsonl`
+continues that file instead: a relative path is taken from the working directory, and a missing
+file or a file that is not a session is an error.
 
 ## Compaction
 
@@ -172,6 +175,7 @@ last reply to stdout and exits.
 sclop -p 'why does make test fail?' --allow-bash
 echo 'list the TODO comments' | sclop -p
 sclop -c -p 'and now fix the first one'
+sclop -c .sclop/sessions/20251123-101500.jsonl -p 'continue in that session'
 ```
 
 - A tool whose permission is `ask` is denied, unless `--allow-TOOL` or `--allow-all`
