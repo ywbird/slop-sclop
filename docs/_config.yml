@@ -2,8 +2,9 @@ title: sclop
 description: Documentation for sclop, a minimal coding agent for the terminal.
 url: "https://ywbird.github.io"
 baseurl: "/slop-sclop"
-theme: minima
 
+# Minima 3.x from git: the pinned gem (2.5.1) predates skins and nav_pages.
+remote_theme: jekyll/minima@4de322363fca5927e6f4012cb94f6dad69ab5e6c
 minima:
   skin: solarized-light
   nav_pages:
@@ -13,8 +14,11 @@ markdown: kramdown
 kramdown:
   input: GFM
 
-# Rewrites links to sibling .md files as .html so the existing docs link correctly.
 plugins:
+  - jekyll-remote-theme
+  - jekyll-seo-tag
+  - jekyll-feed
+  # Rewrites links to sibling .md files as .html so the existing docs link correctly.
   - jekyll-relative-links
 relative_links:
   enabled: true
@@ -27,4 +31,4 @@ defaults:
   - scope:
       path: ""
     values:
-      layout: default
+      layout: base
