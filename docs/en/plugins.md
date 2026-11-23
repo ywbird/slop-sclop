@@ -21,6 +21,25 @@ configuration directory wins over a bundled file with the same name.
 C works too: `~/.config/sclop/foo.so` is loaded by `require('foo')` (it must export
 `luaopen_foo`), and LuaJIT's `ffi` calls C functions without any module at all.
 
+## More plugins
+
+<https://github.com/ywbird/sclop-plugins> collects plugins that are not bundled:
+
+```sh
+git clone https://github.com/ywbird/sclop-plugins.git ~/.config/sclop/plugins
+```
+
+| | |
+|---|---|
+| `interview` | `/interview [goal]` runs the `interview-me` skill and records the confirmed intent in `TODO.md` |
+| `0rwx-ai-x` | `/0rwx [README]` inserts the AI:X logo block into a README and copies its SVGs to `docs/assets/` |
+| `opencode-session-header` | sends an `x-opencode-session` header so opencode Go keeps one session across turns |
+| `notify` | a `notify` tool that sends a desktop notification with `notify-send` |
+| `turn-notify` | one desktop notification when a turn runs 60 seconds or longer |
+
+`tools/pick-session` there is a script, not a plugin: it lists the sessions of the
+current directory, previews each with `sclog`, and resumes the one you pick.
+
 ## Writing a plugin
 
 A plugin uses the same [Lua API](lua-api.md) as the runtime. Some conventions:

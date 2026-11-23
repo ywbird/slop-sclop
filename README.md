@@ -74,6 +74,10 @@ fzf --preview 'sclog {}' < <(ls -t .sclop/sessions/*.jsonl)
 
 The rendered docs are at <https://ywbird.github.io/slop-sclop/>.
 
+More plugins than the bundled ones live in
+[ywbird/sclop-plugins](https://github.com/ywbird/sclop-plugins); clone it into
+`~/.config/sclop/plugins`.
+
 The design notes are in [SPEC.md](SPEC.md) and the work list in [TODO.md](TODO.md)
 (both in Korean).
 

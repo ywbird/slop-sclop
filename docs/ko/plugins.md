@@ -21,6 +21,25 @@ lang: ko
 C도 된다. `~/.config/sclop/foo.so`는 `require('foo')`로 불러온다(`luaopen_foo`를 내보내야 함).
 LuaJIT의 `ffi`를 쓰면 모듈 없이도 C 함수를 부를 수 있다.
 
+## 더 많은 플러그인
+
+<https://github.com/ywbird/sclop-plugins>에 함께 배포하지 않는 플러그인을 모아 두었다.
+
+```sh
+git clone https://github.com/ywbird/sclop-plugins.git ~/.config/sclop/plugins
+```
+
+| | |
+|---|---|
+| `interview` | `/interview [목표]`로 `interview-me` 스킬을 돌리고 확정한 의도를 `TODO.md`에 적는다 |
+| `0rwx-ai-x` | `/0rwx [README]`로 AI:X 로고 블록을 README에 넣고 SVG를 `docs/assets/`로 복사한다 |
+| `opencode-session-header` | `x-opencode-session` 헤더를 보내 opencode Go가 턴을 넘어 한 세션을 유지하게 한다 |
+| `notify` | `notify-send`로 알림을 보내는 `notify` tool |
+| `turn-notify` | 턴이 60초 이상 걸리면 알림을 한 번 보낸다 |
+
+저기 있는 `tools/pick-session`은 플러그인이 아니라 스크립트다. 현재 디렉토리의 세션을 나열하고
+`sclog`로 미리 보여 준 뒤, 고른 세션을 이어서 연다.
+
 ## 플러그인 만들기
 
 플러그인은 런타임과 같은 [Lua API](lua-api.md)를 쓴다. 지키면 좋은 것:
