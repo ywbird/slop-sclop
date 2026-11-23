@@ -319,6 +319,17 @@ A session file holds one JSON value per line: a header
 `{"type":"session","model":...,"cwd":...}`, then every message, and
 `{"type":"compact","summary":...}` where the conversation was compacted.
 
+`sclop.log` is what the `sclog` command runs: `render(path, opts)` returns the text of
+one session file, or nil and an error, and `main(args)` parses a command line and
+returns an exit code. `opts.thinking`, `opts.tools` and `opts.verbose` are the three
+flags of the command; `main` maps `--thinking`, `--tools`, `--verbose` and `--all` onto
+them. The format is deliberate: no escape sequences, so the text survives a pipe.
+
+```lua
+-- a session file as the model would read it, not the screen
+local text = require('sclop.log').render(path, { tools = true })
+```
+
 ## Helpers
 
 `sclop.util`:

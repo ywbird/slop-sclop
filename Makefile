@@ -18,11 +18,11 @@ test: sclop
 
 install: sclop
 	mkdir -p $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(SHAREDIR)
-	cp -f sclop $(DESTDIR)$(PREFIX)/bin/
+	cp -f sclop sclog $(DESTDIR)$(PREFIX)/bin/
 	cp -Rf lua/. $(DESTDIR)$(SHAREDIR)/
 
 uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/bin/sclop
+	rm -f $(DESTDIR)$(PREFIX)/bin/sclop $(DESTDIR)$(PREFIX)/bin/sclog
 	rm -rf $(DESTDIR)$(SHAREDIR)
 
 clean:

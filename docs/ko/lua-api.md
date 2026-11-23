@@ -309,6 +309,17 @@ end
 세션 파일은 한 줄에 JSON 값 하나다. 머리 `{"type":"session","model":...,"cwd":...}`, 그다음 메시지들,
 대화를 요약한 자리에는 `{"type":"compact","summary":...}`.
 
+`sclop.log`는 `sclog` 명령이 실행하는 모듈이다. `render(path, opts)`는 세션 파일 하나의
+텍스트를, 실패하면 nil과 오류를 돌려준다. `main(args)`는 명령행을 해석해 종료 코드를
+돌려준다. `opts.thinking`, `opts.tools`, `opts.verbose`가 명령의 플래그 셋이고, `main`이
+`--thinking`, `--tools`, `--verbose`, `--all`을 여기에 대응시킨다. 출력에 이스케이프가
+없는 건 의도다. 파이프를 그대로 통과한다.
+
+```lua
+-- 화면이 아니라 모델이 읽는 형태로 세션 파일 보기
+local text = require('sclop.log').render(path, { tools = true })
+```
+
 ## 도우미
 
 `sclop.util`:

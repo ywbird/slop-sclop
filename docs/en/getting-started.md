@@ -31,8 +31,8 @@ Build settings are in `config.mk`:
 | `PKGS` | `luajit libcurl` | pkg-config packages |
 | `CC`, `CFLAGS`, `LDFLAGS` | | compiler and flags |
 
-`make install` copies the binary to `$(PREFIX)/bin` and the `lua/` directory to
-`$(SHAREDIR)`, and respects `DESTDIR`.
+`make install` copies the binary and the `sclog` script to `$(PREFIX)/bin` and the
+`lua/` directory to `$(SHAREDIR)`, and respects `DESTDIR`.
 
 The binary looks for Lua modules in these places, in order:
 
@@ -154,6 +154,46 @@ files, which can contain secrets from tool output, stay out of git. `sclop -c` l
 most recent session, prints it, and keeps appending to it. `sclop -c .sclop/sessions/<time>.jsonl`
 continues that file instead: a relative path is taken from the working directory, and a missing
 file or a file that is not a session is an error.
+
+### Reading a session
+
+`make install` also puts `sclog` on your `PATH`. It prints one session file as plain text:
+the header (`model · cwd`), then the conversation in order. The file argument is required.
+
+| Option | Shows |
+|---|---|
+| | the user and assistant text only |
+| `--thinking` | also thinking blocks |
+| `--tools` | also each tool call, with the first three lines of its result and `… N more lines` |
+| `--verbose` | the whole tool result; implies `--tools` |
+| `--all` | all three |
+
+The output has no colors and no escape sequences, so it survives pipes and works as an
+`fzf` preview. An unknown option, a missing file and more than one file are errors.
+
+```
+$ sclog .sclop/sessions/20251123-101500.jsonl
+anthropic/claude-sonnet-4-5 · /home/me/project
+
+> why does make test fail?
+
+Let me run it.
+
+● bash make test
+  ⎿ ...
+    … 12 more lines
+```
+
+`sclog` is a plain filter, so a picker is a few lines: list the sessions, preview each
+one, and resume the one you choose with `sclop -c`.
+
+```sh
+sclog .sclop/sessions/20251123-101500.jsonl        # the conversation
+sclog --all .sclop/sessions/20251123-101500.jsonl  # everything
+
+# pick a session and resume it
+sclop -c "$(ls -t .sclop/sessions/*.jsonl | fzf --preview 'sclog {}')"
+```
 
 ## Compaction
 

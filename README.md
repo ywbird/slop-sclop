@@ -39,6 +39,7 @@ Configuration is a single Lua file. The code stays flat and short, like vis.
   one, `-c FILE` any of them), context compaction, a non-interactive mode (`-p`)
 - Lua plugins: a Korean input method, questions to the user, web fetching
 - `AGENTS.md` loading, runtime module overrides, `make test`
+- `sclog`: session files as plain text, for reading and for `fzf` previews
 
 ## Quick start
 
@@ -53,6 +54,14 @@ You need a C99 compiler, make, pkg-config, LuaJIT 2.1 and libcurl.
 `OPENAI_API_KEY` selects the OpenAI-compatible provider; keys can also live in the
 config file. See [getting started](docs/en/getting-started.md) for install and
 runtime paths.
+
+`make install` also installs `sclog`, which prints one session file as plain text:
+
+```sh
+sclog .sclop/sessions/20251123-101500.jsonl        # the conversation
+sclog --all .sclop/sessions/20251123-101500.jsonl  # with thinking and full tool output
+fzf --preview 'sclog {}' < <(ls -t .sclop/sessions/*.jsonl)
+```
 
 ## Documentation
 

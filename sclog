@@ -1,0 +1,22 @@
+#!/bin/sh
+# sclog FILE: print a session .jsonl as readable plaintext.
+# It is `sclop -l`, with the round trip to the real file worked out here.
+set -e
+
+self=$0
+case $self in
+*/*) ;;
+*) self=$(command -v "$self") || exit 1 ;;
+esac
+dir=$(CDPATH= cd -- "$(dirname -- "$self")" && pwd -P) || exit 1
+
+# the source tree, or an installed tree: bin/sclog next to share/sclop
+if [ -f "$dir/lua/sclog.lua" ] && [ -x "$dir/sclop" ]; then
+	exec "$dir/sclop" -l "$dir/lua/sclog.lua" "$@"
+fi
+if [ -f "$dir/../share/sclop/sclog.lua" ]; then
+	exec sclop -l "$dir/../share/sclop/sclog.lua" "$@"
+fi
+
+echo "sclog: cannot find sclop or its Lua runtime next to $0" >&2
+exit 1

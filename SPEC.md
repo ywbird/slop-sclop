@@ -52,7 +52,10 @@ lua/sclop/agent.lua     대화 루프, tool 실행, 권한
 lua/sclop/sse.lua       SSE 파서
 lua/sclop/providers/    anthropic.lua, openai.lua
 lua/sclop/tools/        read, write, edit, bash, grep, glob, skill
+lua/sclop/log.lua       세션 파일 → plaintext (sclog)
+lua/sclog.lua           sclog 진입점 (`sclop -l`)
 lua/plugins/            korean-ime, question, webfetch
+sclog                   셸 명령: 세션 파일을 plaintext로
 test/                   Lua 테스트 (`make test`)
 docs/en, docs/ko        사용자 문서: 시작하기, 설정, Lua API, 플러그인
 ```
@@ -85,6 +88,15 @@ sclop [옵션]
   -l FILE [ARG]  설정·터미널 없이 런타임만 올리고 Lua 파일 실행 (테스트, 스크립트)
   -v, -h
 ```
+
+세션 읽기:
+```
+sclog [--thinking] [--tools] [--verbose] [--all] FILE
+```
+`.jsonl` 세션 하나를 plaintext로 stdout에 출력한다. 기본은 대화만.
+`--thinking`은 thinking, `--tools`는 tool call과 그 결과 3줄, `--verbose`는 `--tools`를 함축하고
+결과 전문, `--all`은 셋 다. 파일 인자는 필수다. 로직은 `lua/sclop/log.lua`이고, 루트의 `sclog`
+셸 스크립트가 `sclop -l .../sclog.lua`로 넘긴다. `make install`이 `sclop`과 함께 설치한다.
 
 ## 6. 이벤트 루프 (TEA-lite)
 

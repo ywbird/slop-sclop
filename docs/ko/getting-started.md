@@ -30,8 +30,8 @@ make install
 | `PKGS` | `luajit libcurl` | pkg-config 패키지 |
 | `CC`, `CFLAGS`, `LDFLAGS` | | 컴파일러와 플래그 |
 
-`make install`은 실행 파일을 `$(PREFIX)/bin`에, `lua/` 디렉토리를 `$(SHAREDIR)`에 복사한다.
-`DESTDIR`도 따른다.
+`make install`은 실행 파일과 `sclog` 스크립트를 `$(PREFIX)/bin`에, `lua/` 디렉토리를
+`$(SHAREDIR)`에 복사한다. `DESTDIR`도 따른다.
 
 실행 파일은 Lua 모듈을 다음 순서로 찾는다.
 
@@ -150,6 +150,46 @@ Esc는 거부, Ctrl+C는 이번 턴을 멈춘다.
 있는 세션 파일이 git에 올라가지 않게 한다. `sclop -c`는 가장 최근 세션을 불러와 보여주고
 그 파일에 이어 쓴다. `sclop -c .sclop/sessions/<시각>.jsonl`처럼 경로를 주면 그 세션을 이어 쓴다.
 상대 경로는 작업 디렉토리 기준이고, 없는 파일이나 세션 파일이 아니면 오류로 끝난다.
+
+### 세션 읽기
+
+`make install`은 `sclog`도 `PATH`에 넣는다. 세션 파일 하나를 plaintext로 출력한다.
+헤더(`모델 · cwd`) 한 줄, 그다음 대화가 순서대로 나온다. 파일 인자는 필수다.
+
+| 옵션 | 보이는 것 |
+|---|---|
+| | 사용자·어시스턴트 텍스트만 |
+| `--thinking` | thinking 블록까지 |
+| `--tools` | tool 호출과 결과 3줄(`… N more lines`)까지 |
+| `--verbose` | tool 결과 전문. `--tools`를 함축한다 |
+| `--all` | 셋 다 |
+
+출력에 색도 이스케이프도 없어서 파이프로 넘겨도 그대로고, `fzf` 미리보기로 쓸 수 있다.
+모르는 옵션, 없는 파일, 파일을 둘 이상 주면 오류다.
+
+```
+$ sclog .sclop/sessions/20251123-101500.jsonl
+anthropic/claude-sonnet-4-5 · /home/me/project
+
+> make test가 왜 실패해?
+
+한번 돌려 볼게.
+
+● bash make test
+  ⎿ ...
+    … 12 more lines
+```
+
+`sclog`는 그냥 필터라서, 고르는 도구는 몇 줄이면 된다. 세션을 나열하고, 각각을
+미리보기하고, 고른 세션을 `sclop -c`로 이어 쓴다.
+
+```sh
+sclog .sclop/sessions/20251123-101500.jsonl        # 대화만
+sclog --all .sclop/sessions/20251123-101500.jsonl  # 전부
+
+# 세션 골라서 이어 쓰기
+sclop -c "$(ls -t .sclop/sessions/*.jsonl | fzf --preview 'sclog {}')"
+```
 
 ## compaction
 
